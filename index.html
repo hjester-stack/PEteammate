@@ -253,6 +253,56 @@ const renderTournamentPresentationBase=renderTournamentPresentation;
 renderTournamentPresentation=function(){renderTournamentPresentationBase();let title=document.querySelector('#tournamentScreenContent .fs-title');if(title)title.textContent=tournamentDisplayTitle()+' 토너먼트 대진 발표'};
 const openTournamentFullscreenBase=openTournamentFullscreen;
 openTournamentFullscreen=function(){openTournamentFullscreenBase();let title=document.querySelector('#tournamentScreenContent .fs-title');if(title)title.textContent=tournamentDisplayTitle()+' 토너먼트 대진'};
+</script>
+<style>
+/* 명단은 왼쪽, 수업 편성 메뉴는 오른쪽에 배치합니다. */
+.mode-tabs .header-roster{margin-right:auto}
+@media(max-width:720px){.mode-tabs .header-roster{margin-right:0}.mode-tabs:before{margin-left:auto}}
+</style>
+<style>
+.tournament-meta .primary{margin-left:0;white-space:nowrap}
+.tournament-save{display:inline-flex;margin:0 0 14px}
+.tournament-options{margin:0 0 8px}
+.fullscreen-tournament-save{position:absolute;right:24px;top:84px;z-index:6;background:#fff!important;color:#1F2937!important;border:2px solid #FACC15!important}
+</style>
+<script>
+/* 입력 순서: 대회 이름 · 방식 · 대진표 만들기 / 아래에 저장 */
+const tournamentMetaLayout=document.querySelector('.tournament-meta');
+const tournamentCreateButton=tournamentOptionsArea?.querySelector('.primary');
+const tournamentSaveButton=document.querySelector('.tournament-save');
+if(tournamentMetaLayout&&tournamentCreateButton)tournamentMetaLayout.append(tournamentCreateButton);
+if(tournamentOptionsArea&&tournamentSaveButton)tournamentOptionsArea.insertAdjacentElement('afterend',tournamentSaveButton);
+function addFullscreenTournamentSave(){
+  let screen=document.querySelector('#tournamentScreen');
+  if(screen&&!screen.querySelector('.fullscreen-tournament-save'))screen.insertAdjacentHTML('beforeend','<button class="fullscreen-tournament-save" onclick="saveTournamentState()">대회 저장</button>');
+}
+const presentationWithSave=renderTournamentPresentation;
+renderTournamentPresentation=function(){presentationWithSave();addFullscreenTournamentSave()};
+const fullscreenWithSave=openTournamentFullscreen;
+openTournamentFullscreen=function(){fullscreenWithSave();addFullscreenTournamentSave()};
+/* 전체화면 대진표의 현재 경기 이름을 항상 승자 선택 버튼으로 만듭니다. */
+function selectTournamentWinnerFullscreen(group,match,side){
+  let round=tournaments[group]?.rounds.at(-1),game=round?.[match];
+  if(!game||!game.b)return;
+  selectTournamentWinner(group,match,side);
+  if(document.querySelector('#tournamentScreen').classList.contains('show')){
+    if(tournamentWinnerSelectionMode)renderTournamentPresentation();else openTournamentFullscreen();
+  }
+}
+function renderTournamentTree(g,gi){
+  let rounds=g.rounds,depth=rounds.length,height=(depth+1)*170+90,lines=[],nodes=[];
+  for(let ri=0;ri<rounds.length;ri++){
+    let round=rounds[ri],y=(depth-ri)*170+20;
+    round.forEach((m,mi)=>{
+      let x=(mi+.5)/round.length*100,live=ri===rounds.length-1&&m.b;
+      let card=(p,side)=>p?`<${live?'button':'div'} class="tree-name ${p.g==='남'?'boy':'girl'} ${live?'clickable':''} ${m.winner===p?'tree-winner':''}" ${live?`onclick="selectTournamentWinnerFullscreen(${gi},${mi},'${side}')"`:''}>${p.n}</${live?'button':'div'}>`:`<div class="tree-name">부전승</div>`;
+      nodes.push(`<div class="tree-node" style="left:${x}%;top:${y}px"><div class="tree-round">${ri+1}차전 · ${mi+1}경기</div><div class="tree-match">${card(m.a,'a')}<div class="tree-vs">VS</div>${card(m.b,'b')}</div></div>`);
+      if(ri>0){let prev=rounds[ri-1],childA=prev[mi*2],childB=prev[mi*2+1],childY=(depth-(ri-1))*170+108,parentY=y+35;if(childA&&childB){let ax=(mi*2+.5)/prev.length*100,bx=(mi*2+1.5)/prev.length*100,middle=(childY+parentY)/2;lines.push(`<path class="tree-line" d="M ${ax*10} ${childY} L ${ax*10} ${middle} L ${bx*10} ${middle} L ${bx*10} ${childY} M ${(ax+bx)*5} ${middle} L ${x*10} ${parentY}"/>`)}}
+    });
+  }
+  let final=rounds.at(-1),crown=final.length===1&&final[0].winner?`<div class="tree-champion" style="left:50%;top:0">🏆 우승 · ${final[0].winner.n}</div>`:'';
+  return `<div class="tree-wrap"><div class="tree-board" style="height:${height}px">${crown}<svg class="tree-lines" viewBox="0 0 1000 ${height}" preserveAspectRatio="none">${lines.join('')}</svg>${nodes.join('')}</div></div>`;
+}
 </script></body></html>
 
 
