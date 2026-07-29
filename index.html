@@ -127,6 +127,72 @@ function showTeams(){
     return `<article class="team"><h3><b>${i+1}</b>팀 <small>${z.length}명</small><button class="team-toggle" onclick="toggleTeamGroup(${i})">${open?'접기':'열기'}</button></h3><div class="stat">남 ${z.filter(x=>x.g==='남').length} · 여 ${z.filter(x=>x.g==='여').length}<br>상 ${z.filter(x=>x.l==='상').length} · 중 ${z.filter(x=>x.l==='중').length} · 하 ${z.filter(x=>x.l==='하').length}</div>${list}</article>`;
   }).join('')+'</div>';
 }
+</script>
+<style>
+.level-move-guide{margin:0 0 12px;color:#6B7280;font-size:13px}
+.level-move-controls{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:0 0 14px;padding:11px 13px;background:#F3F4F6;border-radius:12px}
+.level-move-controls span{font-size:13px;color:#4B5563;font-weight:700}
+.level-move-controls button{min-height:34px;padding:6px 13px;font-size:13px}
+.level-group .student-chip{cursor:pointer;border:2px solid transparent}
+.level-group .student-chip.selected{border-color:#1F2937;box-shadow:2px 2px 0 #9CA3AF}
+#levelGroups.level-groups{grid-template-columns:1fr;gap:0}
+.level-groups-list{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+.level-group .student-chip.boy{background:#DBEAFE;color:#1E40AF}
+.level-group .student-chip.girl{background:#FCE7F3;color:#9D174D}
+@media(max-width:720px){.level-groups-list{grid-template-columns:1fr}}
+</style>
+<script>
+/* 수준별 보기에서 이름을 선택해 다른 수준 묶음으로 바로 이동합니다. */
+let levelMoveStudent=null;
+function selectLevelStudent(index){levelMoveStudent=index;renderLevelGroups()}
+function moveLevelStudent(level){
+  if(levelMoveStudent===null)return;
+  cls[a].s[levelMoveStudent].l=level;
+  save();
+  levelMoveStudent=null;
+  renderLevelGroups();
+}
+function renderLevelGroups(){
+  let area=document.querySelector('#levelGroups');if(!area)return;
+  let chosen=levelMoveStudent===null?null:cls[a].s[levelMoveStudent];
+  let controls=`<p class="level-move-guide">학생 이름을 선택한 뒤, 이동할 수준을 눌러 주세요.</p><div class="level-move-controls"><span>${chosen?`${chosen.no}. ${chosen.n} 이동:`:'이동할 학생을 선택하세요.'}</span>${['상','중','하'].map(level=>`<button ${chosen?'':'disabled'} onclick="moveLevelStudent('${level}')">${level}으로 이동</button>`).join('')}</div>`;
+  let groups=['상','중','하'].map(level=>{
+    let students=cls[a].s.map((s,index)=>({...s,index})).filter(s=>s.n.trim()&&s.l===level);
+    return `<section class="level-group ${level}"><h3>${level}<small>${students.length}명</small></h3><div>${students.length?students.map(s=>`<button class="student-chip ${s.g==='남'?'boy':'girl'}${levelMoveStudent===s.index?' selected':''}" onclick="selectLevelStudent(${s.index})">${s.no}. ${s.n}</button>`).join(''):'<em>등록된 학생이 없습니다.</em>'}</div></section>`;
+  }).join('');
+  area.innerHTML=controls+`<div class="level-groups-list">${groups}</div>`;
+}
+</script>
+<script>
+/* 발표가 끝난 뒤에는 같은 전체화면에서 승자를 선택해 대진을 진행합니다. */
+let tournamentWinnerSelectionMode=false;
+function selectFullscreenWinner(group,match,side){
+  selectTournamentWinner(group,match,side);
+  if(tournamentWinnerSelectionMode){renderTournamentPresentation()}else{openTournamentFullscreen()}
+}
+function renderTournamentPresentation(){
+  let content=document.querySelector('#tournamentScreenContent'),done=tournamentPresentationShown.length>=tournamentPresentationItems.length;
+  tournamentWinnerSelectionMode=done;
+  let visible=tournamentPresentationFocus==='all'?tournaments:[tournaments[tournamentPresentationFocus]],filters=tournaments.length>1?`<div class="fs-filter"><button class="${tournamentPresentationFocus==='all'?'on':''}" onclick="setTournamentPresentationGroup('all')">전체 보기</button>${tournaments.map((g,i)=>`<button class="${tournamentPresentationFocus===i?'on':''}" onclick="setTournamentPresentationGroup(${i})">${g.name}</button>`).join('')}</div>`:'';
+  let controls=done?'<div class="tournament-present"><p class="fs-caption">이긴 학생 이름을 눌러 다음 라운드로 올리세요.</p><button class="present-next" onclick="closeTournamentFullscreen()">대진 발표 종료</button></div>':'<div class="tournament-present"><button class="present-next" onclick="nextTournamentPresentation()">다음 이름 발표</button><button class="reveal-all" onclick="showAllTournamentPresentation()">전체 명단 보기</button></div>';
+  let boards=visible.map(g=>`<section class="fs-group"><h2>${g.name}</h2>${done?renderTournamentTree(g,tournaments.indexOf(g)):renderTournamentPresentationTree(g,tournaments.indexOf(g))}</section>`).join('');
+  content.innerHTML=`<h1 class="fs-title">${label()} 토너먼트 대진 발표</h1>${filters}<p class="fs-caption">${done?'이름 공개 완료 · 경기별 승자를 선택하세요.':`${tournamentPresentationShown.length} / ${tournamentPresentationItems.length}명 공개 · 회색 이름 칸을 누르거나 스페이스바를 누르면 공개됩니다.`}</p><div class="fs-groups">${boards}</div>${controls}`;
+  document.querySelector('#tournamentScreen').classList.add('show');document.documentElement.requestFullscreen?.();
+}
+function closeTournamentFullscreen(){tournamentWinnerSelectionMode=false;document.querySelector('#tournamentScreen').classList.remove('show');document.exitFullscreen?.()}
+/* 팀 발표의 명단 버튼은 보기 기능만 안내합니다. */
+document.querySelector('.reveal-all').textContent='전체 명단 보기';
+</script>
+<style>
+.mode-tabs:before{order:2;margin:0 4px 0 0}
+.mode-tabs .header-roster{order:1;background:#fff!important;border:2px solid var(--kl-blue)!important;color:var(--kl-blue)!important}
+.mode-tabs .header-roster.on{background:var(--kl-blue)!important;color:#fff!important;box-shadow:3px 3px 0 #1D4ED8!important}
+.mode-tabs>button:not(.header-roster){order:3}
+</style>
+<script>
+/* 학생 명단은 수업 편성 메뉴의 첫 번째 항목으로 배치합니다. */
+const rosterMenuButton=document.querySelector('.header-roster'),activityMenu=document.querySelector('.mode-tabs');
+if(rosterMenuButton&&activityMenu){activityMenu.prepend(rosterMenuButton);document.querySelector('.header-actions')?.remove()}
 </script></body></html>
 
 
