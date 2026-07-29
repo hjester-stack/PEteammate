@@ -795,6 +795,8 @@ showTournamentLibrary = function(view, button) {
 .roster-add-controls label { font-size:14px; font-weight:800; color:#334155; }
 .roster-add-controls input { width:84px; padding:9px 10px; border:2px solid var(--kl-line); border-radius:12px; font:inherit; }
 .class-delete-button { color:#B91C1C !important; border:2px solid #FCA5A5 !important; background:#fff !important; }
+.classset > button { min-height:48px; padding:10px 18px; border-radius:999px !important; }
+.classset > button:not(.class-delete-button) { color:var(--kl-blue) !important; border:2px solid #93C5FD !important; background:#fff !important; }
 </style>
 <script>
 /* 학생 명단에서는 학급 삭제와 원하는 번호로 학생 추가를 지원합니다. */
@@ -959,6 +961,54 @@ if (teamCountArea && !document.querySelector('#teamPanel .team-build-mode')) {
   teamCountArea.parentNode.insertBefore(modeArea, teamCountArea);
 }
 renderTeamBuildControls();
+</script>
+<style>
+/* 팀당 인원 기준으로 많은 팀이 생기면 전체화면 이름을 자동으로 축소합니다. */
+.reveal-board.compact-team-reveal { gap:6px; }
+.reveal-board.compact-team-reveal .reveal-box {
+  min-width:0;
+  height:clamp(270px,43vh,430px);
+  padding:8px 4px;
+}
+.reveal-board.compact-team-reveal .reveal-box h2 {
+  margin:0 0 8px;
+  font-size:clamp(16px,1.7vw,26px);
+  line-height:1.08;
+  word-break:keep-all;
+}
+.reveal-board.compact-team-reveal .reveal-box div { gap:4px; }
+.reveal-board.compact-team-reveal .reveal-box span {
+  padding:6px 4px;
+  font-size:clamp(15px,1.55vw,24px);
+  line-height:1.1;
+  white-space:nowrap;
+}
+</style>
+<script>
+const renderRevealForCompactTeams = renderReveal;
+renderReveal = function() {
+  renderRevealForCompactTeams();
+  const board = document.querySelector('#reveal .reveal-board');
+  if (board) board.classList.toggle('compact-team-reveal', currentTeams.length >= 5);
+};
+</script>
+<style>
+/* 대진표 생성 뒤에는 전체 화면 보기만 위쪽에 표시합니다. */
+#tournamentOut .tournament-next { display:none !important; }
+#tournamentOut .tournament-tree-actions {
+  display:flex !important;
+  margin:0 0 16px !important;
+  order:0;
+}
+#tournamentOut .tournament-tree-actions .reveal-start { display:none !important; }
+</style>
+<script>
+const renderTournamentWithTopFullscreen = renderTournament;
+renderTournament = function() {
+  renderTournamentWithTopFullscreen();
+  const fullscreenButton = document.querySelector('#tournamentOut .tournament-fullscreen');
+  if (fullscreenButton) fullscreenButton.textContent = '전체 화면 보기';
+};
 </script></body></html>
 
 
