@@ -680,6 +680,17 @@ if (teamPanelTitleTarget && !teamPanelTitleTarget.querySelector('.team-panel-tit
 .tournament-card-fullscreen { margin-left: 6px; }
 /* 카드별 전체 화면 보기만 남기고, 대진표 위 공통 버튼은 숨깁니다. */
 .tournament-tree-actions { display: none !important; }
+/* 수준별 명단은 한 줄에 두 명씩 균일하게 배치합니다. */
+.level-group > div {
+  display: grid !important;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 9px !important;
+}
+.level-group .student-chip {
+  width: 100%;
+  min-width: 0;
+  white-space: nowrap;
+}
 </style>
 <script>
 /* 각 대진표에서 해당 그룹만 전체화면으로 바로 확인합니다. */
@@ -698,6 +709,47 @@ renderTournament = function() {
     button.onclick = () => openTournamentGroupFullscreen(groupIndex);
     header.append(button);
   });
+};
+</script>
+<script>
+/* 팀 편성 발표에서는 스페이스바로 다음 학생을 한 명씩 공개합니다. */
+document.addEventListener('keydown', event => {
+  const isTeamReveal = document.querySelector('#reveal')?.classList.contains('show');
+  const editable = ['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement?.tagName);
+  if (event.code === 'Space' && isTeamReveal && !editable && revealIndex < revealOrder.length) {
+    event.preventDefault();
+    nextReveal();
+  }
+});
+</script>
+<style>
+.reveal-save-team {
+  position: fixed;
+  top: 20px;
+  right: 156px;
+  z-index: 12;
+  background: #fff;
+  color: #1f2937;
+}
+@media (max-width:620px) {
+  .reveal-save-team { top: 76px; right: 24px; }
+}
+</style>
+<script>
+/* 전체화면 팀 발표에서도 학급과 팀 수를 확인하고 바로 저장할 수 있습니다. */
+const renderRevealWithClassTitleAndSave = renderReveal;
+renderReveal = function() {
+  renderRevealWithClassTitleAndSave();
+  const heading = document.querySelector('#revealTeam');
+  if (heading) heading.textContent = `${label()} ${currentTeams.length}개 팀 발표`;
+  const screen = document.querySelector('#reveal');
+  if (screen && !screen.querySelector('.reveal-save-team')) {
+    const saveButton = document.createElement('button');
+    saveButton.className = 'reveal-save-team';
+    saveButton.textContent = '팀 편성 저장';
+    saveButton.onclick = () => saveTeamArrangement();
+    screen.append(saveButton);
+  }
 };
 </script></body></html>
 
