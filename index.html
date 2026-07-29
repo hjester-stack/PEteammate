@@ -410,6 +410,128 @@ renderTournament=function(){
   let opened=tournaments.filter((_,i)=>tournamentOpenGroups.includes(i));
   if(opened.length)area.insertAdjacentHTML('beforeend',`<div class="normal-tournament-trees">${opened.map(g=>`<section class="normal-tournament-tree"><h3>${g.name} 대진 나무</h3>${renderTournamentTree(g,tournaments.indexOf(g))}</section>`).join('')}</div>`);
 };
+</script>
+<style>
+.class-add-fields{display:none;align-items:center;gap:6px}
+.class-add-fields.show{display:flex}
+.class-add-fields input{width:65px;text-align:center}
+.class-add-fields b{white-space:nowrap}
+</style>
+<script>
+/* 학급 번호 입력은 학급 추가를 시작할 때만 버튼 옆에 표시합니다. */
+const rosterClassTools=document.querySelector('#rosterPanel > .classset');
+const originalClassSettings=grade.closest('.classset');
+let classAdderOpen=false;
+if(rosterClassTools&&originalClassSettings&&!document.querySelector('#classAddFields')){
+  const classAddFields=document.createElement('div');classAddFields.id='classAddFields';classAddFields.className='class-add-fields';
+  const gradeLabel=grade.nextElementSibling,roomLabel=room.nextElementSibling;
+  classAddFields.append(grade,gradeLabel,room,roomLabel);rosterClassTools.append(classAddFields);originalClassSettings.remove();
+}
+function setClassAdderVisible(){document.querySelector('#classAddFields')?.classList.toggle('show',classAdderOpen)}
+const addClassForFields=addClass;
+addClass=function(){addClassForFields();classAdderOpen=true;setClassAdderVisible()};
+const pickForFields=pick;
+pick=function(index,button){classAdderOpen=false;pickForFields(index,button);setClassAdderVisible()};
+setClassAdderVisible();
+</script>
+<script>
+/* 각 대진 카드의 승자 선택을 현재 경기 데이터에 직접 연결합니다. */
+function chooseTournamentWinner(group,match,side){
+  let round=tournaments[group]?.rounds.at(-1),game=round?.[match];
+  if(!game||!game.b)return;
+  game.winner=side==='a'?game.a:game.b;
+  if(round.length>1&&round.every(item=>item.winner))tournaments[group].rounds.push(makeRound(round.map(item=>item.winner)));
+  saveTournamentState(false);
+  renderTournament();
+}
+function wireTournamentWinnerButtons(){
+  document.querySelectorAll('#tournamentOut .tournament-grid .clean-bracket').forEach((card,group)=>{
+    card.querySelectorAll('.match').forEach((matchCard,index)=>{
+      let players=matchCard.querySelectorAll('.player:not(.bye)');
+      if(players[0])players[0].onclick=()=>chooseTournamentWinner(group,index,'a');
+      if(players[1])players[1].onclick=()=>chooseTournamentWinner(group,index,'b');
+    });
+  });
+}
+const renderTournamentWithWinnerButtons=renderTournament;
+renderTournament=function(){renderTournamentWithWinnerButtons();wireTournamentWinnerButtons()};
+function selectTournamentWinnerFullscreen(group,match,side){
+  chooseTournamentWinner(group,match,side);
+  if(document.querySelector('#tournamentScreen').classList.contains('show')){
+    if(tournamentWinnerSelectionMode)renderTournamentPresentation();else openTournamentFullscreen();
+  }
+}
+</script>
+<style>
+.archive-actions{display:flex;gap:7px;flex-wrap:wrap;margin:0 0 14px}
+.archive-actions button{min-height:38px;padding:7px 13px;font-size:13px}
+.saved-tournament .delete-archive,.saved-team .delete-archive{color:#DC2626;border-color:#FCA5A5!important}
+.saved-team{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:15px;background:#fff;border:2px solid var(--kl-line);border-radius:14px}
+.saved-team b{display:block}.saved-team small{display:block;margin-top:3px;color:#64748B}.saved-team-actions{display:flex;gap:7px;flex-wrap:wrap}
+</style>
+<script>
+/* 저장한 대회 삭제와 팀 편성 저장소 */
+function deleteArchivedTournament(id){
+  if(!confirm('이 저장 대회를 삭제할까요?'))return;
+  localStorage.peTournamentArchive=JSON.stringify(tournamentArchive().filter(item=>item.id!==id));
+  if(cls[a].tournament?.archiveId===id){delete cls[a].tournament;save()}
+  let savedButton=[...document.querySelectorAll('.tournament-library-tabs button')].find(button=>button.textContent.includes('저장한 대회'));
+  showTournamentLibrary('saved',savedButton);
+}
+const showTournamentLibraryWithDelete=showTournamentLibrary;
+showTournamentLibrary=function(view,button){
+  showTournamentLibraryWithDelete(view,button);
+  if(view==='saved')document.querySelectorAll('.saved-tournament').forEach((card,index)=>{
+    let item=tournamentArchive()[index];if(item)card.querySelector('button')?.insertAdjacentHTML('afterend',`<button class="delete-archive" onclick="deleteArchivedTournament('${item.id}')">삭제</button>`);
+  });
+};
+function teamArchive(){try{return JSON.parse(localStorage.peTeamArchive||'[]')}catch{return []}}
+function saveTeamArrangement(){
+  if(!currentTeams.length)return alert('저장할 팀 편성을 먼저 만들어 주세요.');
+  let record={id:`${Date.now()}-${Math.random().toString(36).slice(2,7)}`,name:`${label()} 팀 편성`,className:label(),savedAt:new Date().toLocaleString('ko-KR'),teams:JSON.parse(JSON.stringify(currentTeams))};
+  let all=teamArchive();all.unshift(record);localStorage.peTeamArchive=JSON.stringify(all.slice(0,30));alert('팀 편성을 저장했습니다.');
+}
+function loadTeamArrangement(id){
+  let saved=teamArchive().find(item=>item.id===id);if(!saved)return;
+  currentTeams=JSON.parse(JSON.stringify(saved.teams));selected=[];teamOpenGroups=[];showTeams();
+}
+function deleteTeamArrangement(id){
+  if(!confirm('이 저장 팀 편성을 삭제할까요?'))return;
+  localStorage.peTeamArchive=JSON.stringify(teamArchive().filter(item=>item.id!==id));showSavedTeamArrangements();
+}
+function showSavedTeamArrangements(){
+  let saved=teamArchive();
+  out.innerHTML=`<small>저장한 팀 편성</small><h2>저장한 팀 편성</h2>${saved.length?`<div class="saved-tournaments">${saved.map(item=>`<article class="saved-team"><div><b>${item.name}</b><small>${item.teams.length}팀 · ${item.savedAt}</small></div><div class="saved-team-actions"><button onclick="loadTeamArrangement('${item.id}')">불러오기</button><button class="delete-archive" onclick="deleteTeamArrangement('${item.id}')">삭제</button></div></article>`).join('')}</div>`:'<p>저장한 팀 편성이 아직 없습니다.</p>'}`;
+}
+const showTeamsWithArchiveActions=showTeams;
+showTeams=function(){
+  showTeamsWithArchiveActions();
+  if(currentTeams.length){let heading=out.querySelector('h2');heading?.insertAdjacentHTML('afterend','<div class="archive-actions"><button onclick="saveTeamArrangement()">팀 편성 저장</button><button onclick="showSavedTeamArrangements()">저장한 팀 편성</button></div>')}
+};
+</script>
+<style>
+.mode-tabs{display:none!important}
+.header-tool-nav{margin-left:auto;display:flex;align-items:center;gap:14px;flex-wrap:wrap;justify-content:flex-end}
+.header-tool-nav>button{min-height:40px;padding:8px 14px;background:#fff!important;border:2px solid var(--kl-blue)!important;color:var(--kl-blue)!important}
+.header-tool-group{display:flex;align-items:center;gap:8px;padding-left:14px;border-left:2px solid var(--kl-line)}
+.header-tool-group>strong{font-size:13px;white-space:nowrap;color:#475569}
+.header-tool-links{display:flex;gap:5px}.header-tool-links button{min-height:34px;padding:6px 10px;font-size:12px}
+.header-tool-nav button.on{background:var(--kl-blue)!important;color:#fff!important;border-color:var(--kl-blue)!important}
+@media(max-width:860px){header{align-items:flex-start}.header-tool-nav{margin-left:0;width:100%;justify-content:flex-start}.header-tool-group:first-of-type{border-left:0;padding-left:0}}
+</style>
+<script>
+/* 헤더 오른쪽에서 명단·팀·토너먼트의 만들기와 저장 목록을 바로 엽니다. */
+const appHeader=document.querySelector('header');
+if(appHeader&&!document.querySelector('.header-tool-nav'))appHeader.insertAdjacentHTML('beforeend',`<nav class="header-tool-nav" aria-label="수업 도구"><button onclick="openHeaderTool('roster',this)">학생 명단</button><div class="header-tool-group"><strong>팀 편성</strong><div class="header-tool-links"><button onclick="openHeaderTool('teams',this)">팀 만들기</button><button onclick="openHeaderTool('savedTeams',this)">저장한 팀</button></div></div><div class="header-tool-group"><strong>토너먼트 편성</strong><div class="header-tool-links"><button onclick="openHeaderTool('tournament',this)">대진 만들기</button><button onclick="openHeaderTool('savedTournaments',this)">저장한 대진표</button></div></div></nav>`);
+function openHeaderTool(target,button){
+  document.querySelectorAll('.header-tool-nav button').forEach(item=>item.classList.remove('on'));button.classList.add('on');
+  if(target==='roster'){showMode('roster');return}
+  if(target==='teams'){showMode('teams');return}
+  if(target==='savedTeams'){showMode('teams');showSavedTeamArrangements();return}
+  showMode('tournament');
+  let libraryButtons=document.querySelectorAll('.tournament-library-tabs button');
+  if(target==='savedTournaments')showTournamentLibrary('saved',libraryButtons[1]);else showTournamentLibrary('create',libraryButtons[0]);
+}
 </script></body></html>
 
 
