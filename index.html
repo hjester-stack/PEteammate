@@ -603,10 +603,10 @@ function renderTournament(){
   if(!tournaments.length){tournamentSteps(1);area.innerHTML='<p>먼저 대진 구분을 선택해 주세요.</p>';return}
   let finished=tournaments.every(g=>{let r=g.rounds.at(-1);return r.length===1&&r[0].winner});
   tournamentSteps(finished?3:2);
-  area.innerHTML=`<div class="tournament-tree-stack">${tournaments.map((g,gi)=>{
+  area.innerHTML=`<div class="tournament-tree-actions"><button class="tournament-fullscreen" onclick="openTournamentFullscreen()">전체화면 대진 보기</button><button class="reveal-start noprint" onclick="openTournamentPresentation()">전체화면 발표 시작</button></div><div class="tournament-tree-stack">${tournaments.map((g,gi)=>{
     let round=g.rounds.at(-1),open=tournamentOpenGroups.includes(gi);
     return `<article class="tournament-tree-panel"><header><h3>${g.name}</h3><small>${round.length===1&&round[0].winner?'결과':g.rounds.length+'차전'}</small><button onclick="toggleTournamentGroup(${gi})">${open?'접기':'열기'}</button></header>${open?renderTournamentTree(g,gi):'<div class="tournament-closed">대진표가 숨겨져 있습니다.<br>열기를 눌러 나무 구조를 확인하세요.</div>'}</article>`;
-  }).join('')}</div><div class="tournament-tree-actions"><button class="tournament-fullscreen" onclick="openTournamentFullscreen()">전체화면 대진 보기</button><button class="reveal-start noprint" onclick="openTournamentPresentation()">전체화면 발표 시작</button>${finished?'<p class="champion">모든 토너먼트가 완료되었습니다.</p>':'<button class="primary tournament-next" onclick="nextTournamentRound()">선택한 승자 다음 라운드로 올리기 →</button>'}</div>`;
+  }).join('')}</div>${finished?'<p class="champion">모든 토너먼트가 완료되었습니다.</p>':'<button class="primary tournament-next" onclick="nextTournamentRound()">선택한 승자 다음 라운드로 올리기 →</button>'}`;
 }
 </script>
 <style>
@@ -635,7 +635,28 @@ showTournamentLibrary = function(view, button) {
   const label = document.querySelector('#tournamentPanel > small');
   if (label) label.style.display = view === 'saved' ? 'none' : '';
 };
-</script></body></html>
+</script>
+<script>
+/* 소개 배너는 학생 명단 화면에서만 보여 줍니다. */
+const showModeWithHeroVisibility = showMode;
+showMode = function(mode, button) {
+  showModeWithHeroVisibility(mode, button);
+  const hero = document.querySelector('.hero');
+  if (hero) hero.style.display = mode === 'roster' ? '' : 'none';
+};
+</script>
+<style>
+/* 일반 대진표에서는 많은 경기가 한 화면에 들어오도록 이름 블록을 작게 표시합니다. */
+.tournament-tree-panel .tree-node { width: 118px; }
+.tournament-tree-panel .tree-match { padding: 5px; border-radius: 8px; }
+.tournament-tree-panel .tree-name {
+  margin: 2px 0;
+  padding: 7px 5px;
+  font-size: clamp(12px, 1.3vw, 16px);
+  line-height: 1.15;
+}
+.tournament-tree-panel .tree-round { font-size: 11px; white-space: nowrap; }
+</style></body></html>
 
 
 
