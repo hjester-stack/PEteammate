@@ -193,6 +193,66 @@ document.querySelector('.reveal-all').textContent='전체 명단 보기';
 /* 학생 명단은 수업 편성 메뉴의 첫 번째 항목으로 배치합니다. */
 const rosterMenuButton=document.querySelector('.header-roster'),activityMenu=document.querySelector('.mode-tabs');
 if(rosterMenuButton&&activityMenu){activityMenu.prepend(rosterMenuButton);document.querySelector('.header-actions')?.remove()}
+</script>
+<style>
+.tournament-meta{display:grid;grid-template-columns:minmax(220px,1fr) 150px auto;gap:10px;align-items:end;margin:14px 0}
+.tournament-meta label{display:grid;gap:6px;font-size:13px;font-weight:800;color:#475569}
+.tournament-meta input,.tournament-meta select{min-height:44px;padding:9px 12px;border:2px solid var(--kl-line);border-radius:12px;background:#fff;color:var(--kl-ink);font:inherit}
+.tournament-save{min-height:44px;padding:9px 16px;background:#fff!important;border:2px solid var(--kl-blue)!important;color:var(--kl-blue)!important}
+.tournament-status{margin:0 0 14px;color:#64748B;font-size:14px;font-weight:700}
+@media(max-width:720px){.tournament-meta{grid-template-columns:1fr}.tournament-save{justify-self:start}}
+</style>
+<script>
+/* 대회 이름·방식과 진행 중인 토너먼트를 학급별로 저장합니다. */
+const tournamentOptionsArea=document.querySelector('.tournament-options');
+if(tournamentOptionsArea&&!document.querySelector('#tournamentName')){
+  tournamentOptionsArea.insertAdjacentHTML('beforebegin',`<div class="tournament-meta"><label>대회 이름<input id="tournamentName" placeholder="예: 4-5 배드민턴 대회" maxlength="40"></label><label>경기 방식<select id="tournamentFormat"><option value="single">단식</option><option value="double">복식</option></select></label><button type="button" class="tournament-save" onclick="saveTournamentState()">대회 저장</button></div>`);
+}
+function tournamentDisplayTitle(){return document.querySelector('#tournamentName')?.value.trim()||cls[a].tournament?.name||`${label()} 체육 대회`}
+function tournamentFormatLabel(){return document.querySelector('#tournamentFormat')?.value==='double'?'복식':'단식'}
+function makeDoubleTeams(students){
+  let mixed=[...students].sort(()=>Math.random()-.5),teams=[];
+  for(let i=0;i<mixed.length;i+=2){let first=mixed[i],second=mixed[i+1];teams.push(second?{n:`${first.n} · ${second.n}`,g:first.g,l:first.l,members:[first,second]}:{n:`${first.n} (부전승)`,g:first.g,l:first.l,members:[first]})}
+  return teams;
+}
+function saveTournamentState(showNotice=true){
+  if(!tournaments.length){if(showNotice)alert('저장할 대진표를 먼저 만들어 주세요.');return}
+  cls[a].tournament={name:document.querySelector('#tournamentName').value.trim(),mode:document.querySelector('#tournamentType').value,format:document.querySelector('#tournamentFormat').value,groups:JSON.parse(JSON.stringify(tournaments))};
+  save();
+  if(showNotice)alert('대진표와 진행 상황을 저장했습니다. 다음에 같은 학급을 열면 이어서 진행할 수 있어요.');
+}
+function restoreTournamentState(){
+  let saved=cls[a].tournament,name=document.querySelector('#tournamentName'),type=document.querySelector('#tournamentType'),format=document.querySelector('#tournamentFormat');
+  if(saved&&saved.groups?.length){name.value=saved.name||'';type.value=saved.mode||'gender';format.value=saved.format||'single';tournaments=saved.groups;tournamentOpenGroups=[];renderTournament()}
+  else{if(name)name.value='';if(format)format.value='single';tournaments=[];renderTournament()}
+}
+function buildTournament(){
+  let students=cls[a].s.filter(x=>x.n.trim()),mode=document.querySelector('#tournamentType').value,format=document.querySelector('#tournamentFormat').value;
+  if(!students.length)return alert('학생 명단에 이름을 먼저 입력해 주세요.');
+  let sets=mode==='gender'?[['남학생',students.filter(x=>x.g==='남')],['여학생',students.filter(x=>x.g==='여')]]:mode==='level'?[['상',students.filter(x=>x.l==='상')],['중',students.filter(x=>x.l==='중')],['하',students.filter(x=>x.l==='하')]]:[['전체 학생',students]];
+  tournaments=sets.filter(x=>x[1].length).map(([name,pool])=>{let entrants=format==='double'?makeDoubleTeams(pool):[...pool].sort(()=>Math.random()-.5);return {name,rounds:[makeRound(entrants)]}});
+  tournamentOpenGroups=[];tournamentFocus='all';saveTournamentState(false);renderTournament();
+}
+function selectTournamentWinner(group,match,side){
+  let g=tournaments[group],round=g.rounds.at(-1),m=round[match];m.winner=side==='a'?m.a:m.b;
+  if(round.length>1&&round.every(x=>x.winner))g.rounds.push(makeRound(round.map(x=>x.winner)));
+  saveTournamentState(false);renderTournament();
+}
+function nextTournamentRound(){
+  for(let g of tournaments){let round=g.rounds.at(-1);if(round.length===1&&round[0].winner)continue;if(round.some(m=>!m.winner))return alert('각 경기에서 이긴 학생을 모두 선택해 주세요.');let winners=round.map(m=>m.winner);if(winners.length>1)g.rounds.push(makeRound(winners))}
+  saveTournamentState(false);renderTournament();
+}
+const renderTournamentBase=renderTournament;
+renderTournament=function(){
+  renderTournamentBase();
+  if(tournaments.length){let area=document.querySelector('#tournamentOut');area.insertAdjacentHTML('afterbegin',`<p class="tournament-status">${tournamentDisplayTitle()} · ${tournamentFormatLabel()} · 진행 중인 대진은 자동 저장됩니다.</p>`)}
+};
+const showModeBase=showMode;
+showMode=function(mode,button){showModeBase(mode,button);if(mode==='tournament')restoreTournamentState()};
+const renderTournamentPresentationBase=renderTournamentPresentation;
+renderTournamentPresentation=function(){renderTournamentPresentationBase();let title=document.querySelector('#tournamentScreenContent .fs-title');if(title)title.textContent=tournamentDisplayTitle()+' 토너먼트 대진 발표'};
+const openTournamentFullscreenBase=openTournamentFullscreen;
+openTournamentFullscreen=function(){openTournamentFullscreenBase();let title=document.querySelector('#tournamentScreenContent .fs-title');if(title)title.textContent=tournamentDisplayTitle()+' 토너먼트 대진'};
 </script></body></html>
 
 
