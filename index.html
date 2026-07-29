@@ -751,6 +751,214 @@ renderReveal = function() {
     screen.append(saveButton);
   }
 };
+</script>
+<style>
+.archive-bulk-actions { display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin:0 0 14px; }
+.archive-bulk-actions button { color:#B91C1C; border:2px solid #FCA5A5 !important; background:#fff !important; }
+.saved-team-select, .saved-tournament-select { width:20px; height:20px; accent-color:#2563EB; }
+.saved-team, .saved-tournament { gap:14px; }
+</style>
+<script>
+/* 저장한 팀·대진표는 여러 항목을 선택해 한 번에 삭제합니다. */
+function deleteSelectedTeamArrangements() {
+  const ids = [...document.querySelectorAll('.saved-team-select:checked')].map(input => input.value);
+  if (!ids.length) return alert('삭제할 팀 편성을 선택해 주세요.');
+  if (!confirm(`${ids.length}개의 팀 편성을 삭제할까요?`)) return;
+  localStorage.peTeamArchive = JSON.stringify(teamArchive().filter(item => !ids.includes(item.id)));
+  showSavedTeamArrangements();
+}
+function deleteSelectedTournaments() {
+  const ids = [...document.querySelectorAll('.saved-tournament-select:checked')].map(input => input.value);
+  if (!ids.length) return alert('삭제할 대회를 선택해 주세요.');
+  if (!confirm(`${ids.length}개의 대회를 삭제할까요?`)) return;
+  localStorage.peTournamentArchive = JSON.stringify(tournamentArchive().filter(item => !ids.includes(item.id)));
+  showTournamentLibrary('saved');
+}
+function toggleArchiveSelections(selector, checked) {
+  document.querySelectorAll(selector).forEach(input => input.checked = checked);
+}
+const showSavedTeamsWithBulkDelete = showSavedTeamArrangements;
+showSavedTeamArrangements = function() {
+  const saved = teamArchive();
+  out.innerHTML = `<h2>저장한 팀 편성</h2>${saved.length ? `<div class="archive-bulk-actions"><label><input type="checkbox" onchange="toggleArchiveSelections('.saved-team-select',this.checked)"> 전체 선택</label><button onclick="deleteSelectedTeamArrangements()">선택 삭제</button></div><div class="saved-tournaments">${saved.map(item => `<article class="saved-team"><input class="saved-team-select" type="checkbox" value="${item.id}" aria-label="${item.name} 선택"><div><b>${item.name}</b><small>${item.teams.length}팀 · ${item.savedAt}</small></div><div class="saved-team-actions"><button onclick="loadTeamArrangement('${item.id}')">불러오기</button></div></article>`).join('')}</div>` : '<p>저장한 팀 편성이 아직 없습니다.</p>'}`;
+};
+const showTournamentLibraryWithBulkDelete = showTournamentLibrary;
+showTournamentLibrary = function(view, button) {
+  showTournamentLibraryWithBulkDelete(view, button);
+  if (view !== 'saved') return;
+  const area = document.querySelector('#tournamentOut'), saved = tournamentArchive();
+  area.innerHTML = saved.length ? `<div class="archive-bulk-actions"><label><input type="checkbox" onchange="toggleArchiveSelections('.saved-tournament-select',this.checked)"> 전체 선택</label><button onclick="deleteSelectedTournaments()">선택 삭제</button></div><div class="saved-tournaments">${saved.map(item => `<article class="saved-tournament"><input class="saved-tournament-select" type="checkbox" value="${item.id}" aria-label="${item.name} 선택"><div><b>${item.name}</b><small>${item.className} · ${item.data.format==='double'?'복식':'단식'} · ${item.savedAt}</small></div><button onclick="loadArchivedTournament('${item.id}')">불러오기</button></article>`).join('')}</div>` : '<p>저장한 대회가 아직 없습니다.</p>';
+};
+</script>
+<style>
+.roster-add-controls { display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-top:13px; }
+.roster-add-controls label { font-size:14px; font-weight:800; color:#334155; }
+.roster-add-controls input { width:84px; padding:9px 10px; border:2px solid var(--kl-line); border-radius:12px; font:inherit; }
+.class-delete-button { color:#B91C1C !important; border:2px solid #FCA5A5 !important; background:#fff !important; }
+</style>
+<script>
+/* 학생 명단에서는 학급 삭제와 원하는 번호로 학생 추가를 지원합니다. */
+function deleteCurrentClass() {
+  if (cls.length === 1) return alert('학급은 한 개 이상 있어야 합니다.');
+  if (!confirm(`${label()}을(를) 삭제할까요? 학생 명단도 함께 삭제됩니다.`)) return;
+  cls.splice(a, 1);
+  a = Math.max(0, Math.min(a, cls.length - 1));
+  save();
+  tabs();
+  render();
+  out.innerHTML = '';
+}
+const originalAddStudent = add;
+add = function() {
+  const numberInput = document.querySelector('#newStudentNumber');
+  const requestedNumber = Number(numberInput?.value);
+  if (!Number.isInteger(requestedNumber) || requestedNumber < 1) {
+    alert('추가할 학생의 번호를 입력해 주세요.');
+    numberInput?.focus();
+    return;
+  }
+  if (cls[a].s.some(student => student.no === requestedNumber)) {
+    alert(`${requestedNumber}번은 이미 등록되어 있습니다.`);
+    numberInput?.focus();
+    return;
+  }
+  cls[a].s.push({no:requestedNumber, n:'', g:'남', l:'중'});
+  cls[a].s.sort((first, second) => first.no - second.no);
+  save();
+  render();
+  if (numberInput) numberInput.value = '';
+};
+function setupRosterManagementControls() {
+  const classControls = document.querySelector('#rosterPanel .classset');
+  if (classControls && !classControls.querySelector('.class-delete-button')) {
+    const deleteButton = document.createElement('button');
+    deleteButton.className = 'class-delete-button';
+    deleteButton.textContent = '학급 삭제';
+    deleteButton.onclick = deleteCurrentClass;
+    classControls.append(deleteButton);
+  }
+  const addButton = document.querySelector('#rosterPanel > .add');
+  if (addButton && !document.querySelector('.roster-add-controls')) {
+    const controls = document.createElement('div');
+    controls.className = 'roster-add-controls';
+    controls.innerHTML = '<label for="newStudentNumber">번호</label><input id="newStudentNumber" type="number" min="1" placeholder="예: 16">';
+    addButton.parentNode.insertBefore(controls, addButton);
+    controls.append(addButton);
+  }
+}
+setupRosterManagementControls();
+</script>
+<style>
+/* 대진 저장은 설정 영역의 오른쪽 끝에 배치합니다. */
+.tournament-meta .tournament-save { justify-self:end; margin-left:auto; }
+@media(max-width:720px){.tournament-meta .tournament-save{justify-self:end;margin-left:0}}
+</style>
+<script>
+/* 대회 저장 명칭을 대진 저장으로 통일합니다. */
+function renameTournamentSaveButtons() {
+  document.querySelectorAll('.tournament-save, .fullscreen-tournament-save').forEach(button => button.textContent = '대진 저장');
+}
+renameTournamentSaveButtons();
+const addFullscreenTournamentSaveWithLabel = addFullscreenTournamentSave;
+addFullscreenTournamentSave = function() {
+  addFullscreenTournamentSaveWithLabel();
+  renameTournamentSaveButtons();
+};
+
+/* 카드별 전체화면은 이름을 한 명씩 공개하는 발표 화면으로 시작합니다. */
+openTournamentGroupFullscreen = function(groupIndex) {
+  const group = tournaments[groupIndex];
+  if (!group) return;
+  tournamentPresentationItems = [];
+  group.rounds[0].forEach((match, matchIndex) => {
+    if (match.a) tournamentPresentationItems.push({group:groupIndex, match:matchIndex, side:'a', student:match.a});
+    if (match.b) tournamentPresentationItems.push({group:groupIndex, match:matchIndex, side:'b', student:match.b});
+  });
+  tournamentPresentationIndex = 0;
+  tournamentPresentationShown = [];
+  tournamentPresentationFocus = groupIndex;
+  renderTournamentPresentation();
+  const showAllButton = document.querySelector('#tournamentScreen .reveal-all');
+  if (showAllButton) showAllButton.textContent = '전체 공개';
+};
+</script>
+<style>
+.tournament-winner-celebration {
+  min-height: calc(100vh - 120px);
+  display: grid;
+  place-content: center;
+  gap: 20px;
+  text-align: center;
+  color: #fff;
+}
+.tournament-winner-celebration .trophy { font-size: clamp(70px, 12vw, 150px); }
+.tournament-winner-celebration p { margin: 0; color: #FDE68A; font-size: clamp(24px, 4vw, 52px); font-weight: 900; }
+.tournament-winner-celebration h1 { margin: 0; color: #fff; font-size: clamp(46px, 9vw, 118px); line-height: 1.05; font-weight: 900; }
+.tournament-winner-celebration small { color: #CBD5E1; font-size: clamp(18px, 2vw, 28px); }
+</style>
+<script>
+/* 결승 승자가 선택되면 축하 전체화면을 표시합니다. */
+function showTournamentWinnerCelebration(groupIndex) {
+  const group = tournaments[groupIndex], finalMatch = group?.rounds.at(-1)?.[0];
+  if (!finalMatch?.winner) return;
+  const content = document.querySelector('#tournamentScreenContent');
+  content.innerHTML = `<section class="tournament-winner-celebration"><div class="trophy">🏆</div><p>${group.name} 토너먼트</p><h1>우승자 : ${finalMatch.winner.n}</h1><small>축하합니다! 🎉</small><button class="present-next" onclick="closeTournamentFullscreen()">축하 화면 나가기</button></section>`;
+  document.querySelector('#tournamentScreen').classList.add('show');
+  document.documentElement.requestFullscreen?.();
+}
+const selectFullscreenWinnerWithCelebration = selectTournamentWinnerFullscreen;
+selectTournamentWinnerFullscreen = function(groupIndex, matchIndex, side) {
+  selectFullscreenWinnerWithCelebration(groupIndex, matchIndex, side);
+  const finalMatch = tournaments[groupIndex]?.rounds.at(-1)?.[0];
+  if (finalMatch?.winner) showTournamentWinnerCelebration(groupIndex);
+};
+</script>
+<style>
+.team-build-mode { display:flex; align-items:center; gap:7px; flex-wrap:wrap; margin:0 0 12px; }
+.team-build-mode span { font-weight:900; color:#1F2937; margin-right:3px; }
+.team-build-mode button { min-height:40px; padding:7px 13px; background:#fff; border:2px solid var(--kl-line); color:#475569; }
+.team-build-mode button.on { background:var(--kl-blue); border-color:var(--kl-blue); color:#fff; }
+.team-count { margin-left:0 !important; }
+</style>
+<script>
+/* 팀 수 또는 팀당 인원 기준으로 균형 팀을 만들 수 있습니다. */
+let teamBuildMode = 'count', teamBuildValue = 2;
+function renderTeamBuildControls() {
+  const countArea = document.querySelector('#teamPanel .team-count');
+  const modeArea = document.querySelector('#teamPanel .team-build-mode');
+  if (!countArea || !modeArea) return;
+  modeArea.querySelectorAll('button').forEach(button => button.classList.toggle('on', button.dataset.mode === teamBuildMode));
+  countArea.innerHTML = `<span>${teamBuildMode === 'count' ? '팀 수' : '팀당 인원'}</span>${[2,3,4,5,6].map(value => `<button type="button" class="${value===teamBuildValue?'on':''}" onclick="selectTeamBuildValue(${value})">${value}${teamBuildMode === 'count' ? '팀' : '명'}</button>`).join('')}`;
+}
+function setTeamBuildMode(mode) { teamBuildMode = mode; renderTeamBuildControls(); out.innerHTML = ''; }
+function selectTeamBuildValue(value) { teamBuildValue = value; renderTeamBuildControls(); out.innerHTML = ''; }
+function makeBalancedTeams(students, teamCount) {
+  const teams = Array.from({length:teamCount}, () => []), buckets = {};
+  [...students].sort(() => Math.random() - .5).forEach(student => (buckets[student.l + student.g] ??= []).push(student));
+  Object.values(buckets).forEach(bucket => bucket.forEach(student => {
+    const target = teams.map((team, index) => [index, team.length, team.filter(member => member.l === student.l).length, team.filter(member => member.g === student.g).length])
+      .sort((left, right) => left[1] - right[1] || left[2] - right[2] || left[3] - right[3] || Math.random() - .5)[0][0];
+    teams[target].push(student);
+  }));
+  return teams;
+}
+make = function() {
+  const students = cls[a].s.filter(student => student.n.trim());
+  if (!students.length) return alert('이름을 한 명 이상 입력해 주세요.');
+  const teamCount = teamBuildMode === 'count' ? teamBuildValue : Math.ceil(students.length / teamBuildValue);
+  if (students.length < teamCount) return alert('팀 수보다 학생 수가 적습니다.');
+  currentTeams = makeBalancedTeams(students, teamCount);
+  selected = [];
+  showTeams();
+};
+const teamCountArea = document.querySelector('#teamPanel .team-count');
+if (teamCountArea && !document.querySelector('#teamPanel .team-build-mode')) {
+  const modeArea = document.createElement('div');
+  modeArea.className = 'team-build-mode';
+  modeArea.innerHTML = '<span>편성 기준</span><button type="button" data-mode="count" onclick="setTeamBuildMode(\'count\')">팀 수</button><button type="button" data-mode="size" onclick="setTeamBuildMode(\'size\')">팀당 인원</button>';
+  teamCountArea.parentNode.insertBefore(modeArea, teamCountArea);
+}
+renderTeamBuildControls();
 </script></body></html>
 
 
