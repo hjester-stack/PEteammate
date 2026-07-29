@@ -303,7 +303,67 @@ function renderTournamentTree(g,gi){
   let final=rounds.at(-1),crown=final.length===1&&final[0].winner?`<div class="tree-champion" style="left:50%;top:0">🏆 우승 · ${final[0].winner.n}</div>`:'';
   return `<div class="tree-wrap"><div class="tree-board" style="height:${height}px">${crown}<svg class="tree-lines" viewBox="0 0 1000 ${height}" preserveAspectRatio="none">${lines.join('')}</svg>${nodes.join('')}</div></div>`;
 }
-</script></body></html>
+</script>
+<style>
+.tournament-library-tabs{display:flex;gap:8px;margin:0 0 14px}
+.tournament-library-tabs button{min-height:38px;padding:7px 14px;font-size:13px}
+.tournament-library-tabs button.on{background:var(--kl-blue)!important;color:#fff!important;border-color:var(--kl-blue)!important}
+.saved-tournaments{display:grid;gap:10px;margin-top:12px}
+.saved-tournament{display:flex;align-items:center;gap:12px;justify-content:space-between;padding:15px;background:#fff;border:2px solid var(--kl-line);border-radius:14px}
+.saved-tournament b{display:block}.saved-tournament small{display:block;margin-top:3px;color:#64748B}.saved-tournament button{min-height:38px;padding:7px 13px}
+</style>
+<script>
+/* 저장한 대회를 별도 목록에서 다시 불러올 수 있습니다. */
+const tournamentPanelElement=document.querySelector('#tournamentPanel');
+if(tournamentPanelElement&&!document.querySelector('.tournament-library-tabs')){
+  tournamentPanelElement.querySelector('h2').insertAdjacentHTML('afterend','<nav class="tournament-library-tabs"><button class="on" onclick="showTournamentLibrary(\'create\',this)">대진 만들기</button><button onclick="showTournamentLibrary(\'saved\',this)">저장한 대회</button></nav>');
+}
+let tournamentLibraryView='create';
+function tournamentArchive(){try{return JSON.parse(localStorage.peTournamentArchive||'[]')}catch{return []}}
+function putTournamentArchive(record){let all=tournamentArchive(),at=all.findIndex(x=>x.id===record.id);if(at>=0)all[at]=record;else all.unshift(record);localStorage.peTournamentArchive=JSON.stringify(all.slice(0,30))}
+function saveTournamentState(showNotice=true){
+  if(!tournaments.length){if(showNotice)alert('저장할 대진표를 먼저 만들어 주세요.');return}
+  let previous=cls[a].tournament||{},id=previous.archiveId||`${Date.now()}-${Math.random().toString(36).slice(2,7)}`;
+  let snapshot={archiveId:id,name:document.querySelector('#tournamentName').value.trim(),mode:document.querySelector('#tournamentType').value,format:document.querySelector('#tournamentFormat').value,groups:JSON.parse(JSON.stringify(tournaments))};
+  cls[a].tournament=snapshot;save();
+  putTournamentArchive({id,name:snapshot.name||`${label()} 체육 대회`,className:label(),savedAt:new Date().toLocaleString('ko-KR'),data:snapshot});
+  if(showNotice)alert('대진표와 진행 상황을 저장했습니다. 저장한 대회 탭에서 다시 볼 수 있어요.');
+}
+function showTournamentLibrary(view,button){
+  tournamentLibraryView=view;document.querySelectorAll('.tournament-library-tabs button').forEach(b=>b.classList.remove('on'));button?.classList.add('on');
+  let meta=document.querySelector('.tournament-meta'),options=document.querySelector('.tournament-options'),saveButton=document.querySelector('.tournament-save'),guide=document.querySelector('.tournament-guide'),area=document.querySelector('#tournamentOut');
+  let display=view==='create'?'':'none';[meta,options,saveButton,guide].forEach(el=>{if(el)el.style.display=display});
+  if(view==='create'){restoreTournamentState();return}
+  let saved=tournamentArchive();
+  area.innerHTML=saved.length?`<div class="saved-tournaments">${saved.map(item=>`<article class="saved-tournament"><div><b>${item.name}</b><small>${item.className} · ${item.data.format==='double'?'복식':'단식'} · ${item.savedAt}</small></div><button onclick="loadArchivedTournament('${item.id}')">불러오기</button></article>`).join('')}</div>`:'<p>저장한 대회가 아직 없습니다.</p>';
+}
+function loadArchivedTournament(id){
+  let item=tournamentArchive().find(x=>x.id===id);if(!item)return;
+  cls[a].tournament=JSON.parse(JSON.stringify(item.data));save();
+  document.querySelector('#tournamentName').value=item.data.name||'';document.querySelector('#tournamentType').value=item.data.mode||'gender';document.querySelector('#tournamentFormat').value=item.data.format||'single';
+  tournaments=JSON.parse(JSON.stringify(item.data.groups||[]));tournamentOpenGroups=[];
+  let createButton=document.querySelector('.tournament-library-tabs button');showTournamentLibrary('create',createButton);renderTournament();
+}
+const buildTournamentForArchive=buildTournament;
+buildTournament=function(){cls[a].tournament=null;buildTournamentForArchive()};
+/* 대각선 없이 수직·수평으로만 이어지는 대진 연결선 */
+function orthogonalBranch(ax,bx,px,childY,parentY){let middle=(childY+parentY)/2,center=(ax+bx)/2;return `<path class="tree-line" d="M ${ax} ${childY} L ${ax} ${middle} L ${bx} ${middle} L ${bx} ${childY} M ${center} ${middle} L ${center} ${parentY} L ${px} ${parentY}"/>`}
+function renderTournamentTree(g,gi){
+  let rounds=g.rounds,depth=rounds.length,height=(depth+1)*170+90,lines=[],nodes=[];
+  for(let ri=0;ri<rounds.length;ri++){let round=rounds[ri],y=(depth-ri)*170+20;round.forEach((m,mi)=>{let x=(mi+.5)/round.length*100,live=ri===rounds.length-1&&m.b,card=(p,side)=>p?`<${live?'button':'div'} class="tree-name ${p.g==='남'?'boy':'girl'} ${live?'clickable':''} ${m.winner===p?'tree-winner':''}" ${live?`onclick="selectTournamentWinnerFullscreen(${gi},${mi},'${side}')"`:''}>${p.n}</${live?'button':'div'}>`:`<div class="tree-name">부전승</div>`;nodes.push(`<div class="tree-node" style="left:${x}%;top:${y}px"><div class="tree-round">${ri+1}차전 · ${mi+1}경기</div><div class="tree-match">${card(m.a,'a')}<div class="tree-vs">VS</div>${card(m.b,'b')}</div></div>`);if(ri>0){let prev=rounds[ri-1],a=prev[mi*2],b=prev[mi*2+1],childY=(depth-(ri-1))*170+108,parentY=y+35;if(a&&b){let ax=(mi*2+.5)/prev.length*1000,bx=(mi*2+1.5)/prev.length*1000,px=x*10;lines.push(orthogonalBranch(ax,bx,px,childY,parentY))}}})}
+  let final=rounds.at(-1),crown=final.length===1&&final[0].winner?`<div class="tree-champion" style="left:50%;top:0">🏆 우승 · ${final[0].winner.n}</div>`:'';return `<div class="tree-wrap"><div class="tree-board" style="height:${height}px">${crown}<svg class="tree-lines" viewBox="0 0 1000 ${height}" preserveAspectRatio="none">${lines.join('')}</svg>${nodes.join('')}</div></div>`;
+}
+function renderTournamentPresentationTree(g,gi){
+  let rounds=[g.rounds[0]],depth=1;while(rounds.at(-1).length>1){rounds.push(Array.from({length:Math.ceil(rounds.at(-1).length/2)},()=>({a:null,b:null})))}depth=rounds.length;let height=(depth+1)*170+90,lines=[],nodes=[];
+  for(let ri=0;ri<rounds.length;ri++){let round=rounds[ri],y=(depth-ri)*170+20;round.forEach((m,mi)=>{let x=(mi+.5)/round.length*100;let card=(p,side)=>{if(!p)return '<div class="tree-name tree-hidden">결과 대기</div>';let itemIndex=tournamentPresentationItems.findIndex(q=>q.group===gi&&q.match===mi&&q.side===side),shown=tournamentPresentationShown.includes(itemIndex);return shown?`<div class="tree-name ${p.g==='남'?'boy':'girl'}">${p.n}</div>`:`<button class="tree-name tree-hidden clickable" onclick="revealTournamentStudent(${itemIndex})">?</button>`};nodes.push(`<div class="tree-node" style="left:${x}%;top:${y}px"><div class="tree-round">${ri+1}차전 · ${mi+1}경기</div><div class="tree-match">${card(m.a,'a')}<div class="tree-vs">VS</div>${card(m.b,'b')}</div></div>`);if(ri>0){let prev=rounds[ri-1],a=prev[mi*2],b=prev[mi*2+1],childY=(depth-(ri-1))*170+108,parentY=y+35;if(a&&b){let ax=(mi*2+.5)/prev.length*1000,bx=(mi*2+1.5)/prev.length*1000,px=x*10;lines.push(orthogonalBranch(ax,bx,px,childY,parentY))}}})}
+  return `<div class="tree-wrap"><div class="tree-board" style="height:${height}px"><svg class="tree-lines" viewBox="0 0 1000 ${height}" preserveAspectRatio="none">${lines.join('')}</svg>${nodes.join('')}</div></div>`;
+}
+</script>
+<style>
+/* 전체화면 저장 버튼은 나가기 버튼의 왼쪽에 고정합니다. */
+.fullscreen-tournament-save{position:fixed!important;top:20px!important;right:174px!important;margin:0!important}
+@media(max-width:620px){.fullscreen-tournament-save{top:78px!important;right:24px!important}}
+</style></body></html>
 
 
 
