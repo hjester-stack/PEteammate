@@ -532,6 +532,82 @@ function openHeaderTool(target,button){
   let libraryButtons=document.querySelectorAll('.tournament-library-tabs button');
   if(target==='savedTournaments')showTournamentLibrary('saved',libraryButtons[1]);else showTournamentLibrary('create',libraryButtons[0]);
 }
+</script>
+<style>
+.header-tool-nav{gap:12px!important;flex-wrap:nowrap!important}
+.header-menu-group{position:relative}
+.header-menu-trigger{min-height:40px!important;padding:8px 14px!important;background:#fff!important;border:2px solid var(--kl-line)!important;color:var(--kl-ink)!important}
+.header-menu-trigger:after{content:'⌄';margin-left:6px;color:#64748B}
+.header-dropdown{display:none;position:absolute;top:calc(100% + 8px);right:0;z-index:20;min-width:150px;padding:7px;background:#fff;border:2px solid var(--kl-line);border-radius:14px;box-shadow:4px 6px 0 #D1D5DB}
+.header-dropdown button{display:block;width:100%;min-height:38px;padding:7px 10px;text-align:left;border:0!important;border-radius:9px!important;background:#fff!important;color:var(--kl-ink)!important;box-shadow:none!important}
+.header-dropdown button:hover{background:#EFF6FF!important;color:var(--kl-blue)!important}
+.header-menu-group:hover .header-dropdown,.header-menu-group:focus-within .header-dropdown{display:grid;gap:3px}
+@media(max-width:860px){.header-tool-nav{flex-wrap:wrap!important}.header-dropdown{right:auto;left:0}}
+</style>
+<script>
+/* 상단 팀·토너먼트 메뉴는 커서를 올리면 세부 기능이 펼쳐집니다. */
+const headerToolNavigation=document.querySelector('.header-tool-nav');
+if(headerToolNavigation)headerToolNavigation.innerHTML=`<button onclick="openHeaderTool('roster',this)">학생 명단</button><div class="header-menu-group"><button class="header-menu-trigger" onclick="openHeaderTool('teams',this)">팀 편성</button><div class="header-dropdown"><button onclick="openHeaderTool('teams',this)">팀 만들기</button><button onclick="openHeaderTool('savedTeams',this)">저장한 팀</button></div></div><div class="header-menu-group"><button class="header-menu-trigger" onclick="openHeaderTool('tournament',this)">토너먼트 편성</button><div class="header-dropdown"><button onclick="openHeaderTool('tournament',this)">대진 만들기</button><button onclick="openHeaderTool('savedTournaments',this)">저장한 대진표</button></div></div>`;
+</script>
+<script>
+/* 저장 목록 화면은 저장한 항목만 간결하게 보여 줍니다. */
+const showSavedTeamsClean=showSavedTeamArrangements;
+showSavedTeamArrangements=function(){showSavedTeamsClean();out.querySelector('small')?.remove()};
+const showTournamentLibraryClean=showTournamentLibrary;
+showTournamentLibrary=function(view,button){
+  showTournamentLibraryClean(view,button);
+  let panel=document.querySelector('#tournamentPanel'),label=panel.querySelector(':scope > small'),heading=panel.querySelector(':scope > h2'),tabs=panel.querySelector('.tournament-library-tabs');
+  if(view==='saved'){
+    if(label)label.textContent='저장한 대회';
+    if(heading)heading.textContent='저장한 대회';
+    if(tabs)tabs.style.display='none';
+  }else{
+    if(label)label.textContent='토너먼트 편성';
+    if(heading)heading.textContent='대진 만들기';
+    if(tabs)tabs.style.display='flex';
+  }
+};
+</script>
+<style>
+/* 대진표를 만들기 전 필요한 세 가지 선택값을 한 줄에 배치합니다. */
+.tournament-meta{grid-template-columns:minmax(260px,1fr) 150px minmax(220px,300px) auto}
+.tournament-meta #tournamentType{min-height:44px;padding:9px 12px;border:2px solid var(--kl-line);border-radius:12px;background:#fff;color:var(--kl-ink);font:inherit}
+@media(max-width:900px){.tournament-meta{grid-template-columns:minmax(220px,1fr) 150px minmax(200px,1fr)}.tournament-meta .primary{grid-column:1/-1;justify-self:start}}
+@media(max-width:720px){.tournament-meta{grid-template-columns:1fr}.tournament-meta .primary{grid-column:auto}}
+</style>
+<script>
+/* 대회 이름 · 경기 방식 · 대진 구분을 같은 줄에서 선택합니다. */
+const tournamentTypeSelect=document.querySelector('#tournamentType');
+if(tournamentMetaLayout&&tournamentTypeSelect&&tournamentCreateButton){
+  tournamentMetaLayout.insertBefore(tournamentTypeSelect,tournamentCreateButton);
+}
+</script>
+<style>
+/* 대진표는 좌우 카드 대신 위아래로 이어지는 나무만 표시합니다. */
+.tournament-tree-stack{display:grid;grid-template-columns:1fr;gap:18px;margin-top:16px}
+.tournament-tree-panel{overflow:hidden;background:#F9FAFB;border:2px solid var(--kl-line);border-radius:20px;box-shadow:4px 4px 0 #D1D5DB}
+.tournament-tree-panel>header{display:flex;align-items:center;gap:10px;padding:13px 16px;background:var(--kl-blue);border:0;color:#fff}
+.tournament-tree-panel>header h3{margin:0 auto 0 0;font-size:21px;color:#fff}
+.tournament-tree-panel>header small{padding:5px 8px;border-radius:999px;background:#DCFCE7;color:#166534;font-weight:800}
+.tournament-tree-panel>header button{min-height:38px;padding:7px 13px;background:#fff!important;color:var(--kl-red)!important;box-shadow:none!important}
+.tournament-tree-panel .tree-wrap{width:100%;max-width:100%;background:#1F2937}
+.tournament-tree-panel .tree-board{min-width:760px}
+.tournament-tree-panel .tournament-closed{padding:30px;text-align:center;color:#64748B}
+.tournament-tree-actions{display:flex;gap:10px;flex-wrap:wrap;margin:18px 0 0}
+.tournament-fullscreen{background:var(--kl-blue)!important;color:#fff!important}
+</style>
+<script>
+/* 일반 화면은 나무 구조로만, 그룹은 위아래 순서로 보여 줍니다. */
+function renderTournament(){
+  let area=document.querySelector('#tournamentOut');
+  if(!tournaments.length){tournamentSteps(1);area.innerHTML='<p>먼저 대진 구분을 선택해 주세요.</p>';return}
+  let finished=tournaments.every(g=>{let r=g.rounds.at(-1);return r.length===1&&r[0].winner});
+  tournamentSteps(finished?3:2);
+  area.innerHTML=`<div class="tournament-tree-stack">${tournaments.map((g,gi)=>{
+    let round=g.rounds.at(-1),open=tournamentOpenGroups.includes(gi);
+    return `<article class="tournament-tree-panel"><header><h3>${g.name}</h3><small>${round.length===1&&round[0].winner?'결과':g.rounds.length+'차전'}</small><button onclick="toggleTournamentGroup(${gi})">${open?'접기':'열기'}</button></header>${open?renderTournamentTree(g,gi):'<div class="tournament-closed">대진표가 숨겨져 있습니다.<br>열기를 눌러 나무 구조를 확인하세요.</div>'}</article>`;
+  }).join('')}</div><div class="tournament-tree-actions"><button class="tournament-fullscreen" onclick="openTournamentFullscreen()">전체화면 대진 보기</button><button class="reveal-start noprint" onclick="openTournamentPresentation()">전체화면 발표 시작</button>${finished?'<p class="champion">모든 토너먼트가 완료되었습니다.</p>':'<button class="primary tournament-next" onclick="nextTournamentRound()">선택한 승자 다음 라운드로 올리기 →</button>'}</div>`;
+}
 </script></body></html>
 
 
