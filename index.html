@@ -1637,6 +1637,29 @@ renderTournament=function(){
 document.querySelectorAll('.tournament-choice-guide,.fullscreen-choice-guide').forEach(guide=>{
   guide.innerHTML=guide.innerHTML.replace(/방금 선택한 승자|방금 선택한/i,'선택한 승자');
 });
+</script>
+<style>
+/* 대진 나무를 유지한 채 1차전 공개 위치로 부드럽게 이동합니다. */
+#tournamentScreen{scroll-behavior:smooth}
+</style>
+<script>
+function scrollTournamentPresentationToFirstRound(){
+  requestAnimationFrame(()=>{
+    const screen=document.querySelector('#tournamentScreen');
+    if(!screen?.classList.contains('show'))return;
+    screen.scrollTo({top:screen.scrollHeight,left:0,behavior:'smooth'});
+  });
+}
+const revealTournamentStudentWithFirstRoundScroll=revealTournamentStudent;
+revealTournamentStudent=function(index){
+  revealTournamentStudentWithFirstRoundScroll(index);
+  if(tournamentPresentationItems[index])scrollTournamentPresentationToFirstRound();
+};
+const showAllTournamentPresentationWithFirstRoundScroll=showAllTournamentPresentation;
+showAllTournamentPresentation=function(){
+  showAllTournamentPresentationWithFirstRoundScroll();
+  scrollTournamentPresentationToFirstRound();
+};
 </script></body></html>
 
 
