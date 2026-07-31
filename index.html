@@ -1453,7 +1453,98 @@ renderTournament=function(){
   const row=document.querySelector('#tournamentOut .tournament-undo-row');
   row?.querySelectorAll('button,small').forEach(element=>element.remove());
 };
-</script></body></html>
+</script>
+<style>
+/* 수준별 보기에서는 학생 추가용 번호 입력을 표시하지 않습니다. */
+#rosterPanel .roster-add-controls.roster-level-hidden{display:none!important}
+</style>
+<script>
+const setRosterViewWithAddControlVisibility=setRosterView;
+setRosterView=function(view,button){
+  const result=setRosterViewWithAddControlVisibility(view,button);
+  document.querySelector('#rosterPanel .roster-add-controls')?.classList.toggle('roster-level-hidden',view==='level');
+  return result;
+};
+</script>
+<script>
+/* 팀 결과 화면에는 저장 버튼 하나만 표시하고, 대진 발표는 선택한 묶음별로 진행합니다. */
+const showTeamsWithSingleSaveAction=showTeams;
+showTeams=function(){
+  showTeamsWithSingleSaveAction();
+  out.querySelectorAll('.archive-actions').forEach(row=>{
+    row.querySelectorAll('button').forEach(button=>{
+      if(button.textContent.includes('저장한 팀 편성'))button.remove();
+    });
+  });
+};
+
+function tournamentPresentationScope(){
+  return tournamentPresentationFocus==='all'
+    ? tournamentPresentationItems.map((_,index)=>index)
+    : tournamentPresentationItems.map((item,index)=>item.group===tournamentPresentationFocus?index:-1).filter(index=>index>=0);
+}
+function isTournamentPresentationScopeComplete(){
+  const scope=tournamentPresentationScope();
+  return scope.length>0&&scope.every(index=>tournamentPresentationShown.includes(index));
+}
+function setTournamentPresentationGroup(group){
+  tournamentPresentationFocus=group;
+  renderTournamentPresentation();
+}
+function nextTournamentPresentation(){
+  const next=tournamentPresentationScope().find(index=>!tournamentPresentationShown.includes(index));
+  if(next!==undefined)revealTournamentStudent(next);
+}
+function showAllTournamentPresentation(){
+  tournamentPresentationScope().forEach(index=>{
+    if(!tournamentPresentationShown.includes(index))tournamentPresentationShown.push(index);
+  });
+  tournamentPresentationIndex=tournamentPresentationShown.length;
+  renderTournamentPresentation();
+}
+function renderTournamentPresentation(){
+  const content=document.querySelector('#tournamentScreenContent');
+  const done=isTournamentPresentationScopeComplete();
+  tournamentWinnerSelectionMode=done;
+  const visible=tournamentPresentationFocus==='all'?tournaments:[tournaments[tournamentPresentationFocus]];
+  const filters=tournaments.length>1?`<div class="fs-filter"><button class="${tournamentPresentationFocus==='all'?'on':''}" onclick="setTournamentPresentationGroup('all')">전체 보기</button>${tournaments.map((group,index)=>`<button class="${tournamentPresentationFocus===index?'on':''}" onclick="setTournamentPresentationGroup(${index})">${group.name}</button>`).join('')}</div>`:'';
+  const scope=tournamentPresentationScope();
+  const labelText=tournamentPresentationFocus==='all'?'전체 학생':tournaments[tournamentPresentationFocus].name;
+  const boards=visible.map(group=>{
+    const groupIndex=tournaments.indexOf(group);
+    const groupDone=tournamentPresentationItems.filter(item=>item.group===groupIndex).every(item=>{
+      const itemIndex=tournamentPresentationItems.indexOf(item);
+      return tournamentPresentationShown.includes(itemIndex);
+    });
+    return `<section class="fs-group"><h2>${group.name}</h2>${groupDone?renderTournamentTree(group,groupIndex):renderTournamentPresentationTree(group,groupIndex)}</section>`;
+  }).join('');
+  const controls=done
+    ? '<div class="tournament-present"><p class="fs-caption">이긴 학생 이름을 눌러 다음 라운드로 올리세요.</p><button class="present-next" onclick="closeTournamentFullscreen()">대진 발표 종료</button></div>'
+    : `<div class="tournament-present"><button class="present-next" onclick="nextTournamentPresentation()">다음 이름 발표</button><button class="reveal-all" onclick="showAllTournamentPresentation()">${labelText} 모두 공개</button></div>`;
+  content.innerHTML=`<h1 class="fs-title">${label()} 토너먼트 대진 발표</h1>${filters}<p class="fs-caption">${done?`${labelText} 이름 공개 완료 · 이긴 학생 이름을 눌러 승자를 선택하세요.`:`${labelText} ${scope.filter(index=>tournamentPresentationShown.includes(index)).length} / ${scope.length}명 공개 · 스페이스바를 눌러 다음 이름을 공개하세요.`}</p><div class="fs-groups">${boards}</div>${controls}`;
+  document.querySelector('#tournamentScreen').classList.add('show');
+  document.documentElement.requestFullscreen?.();
+}
+undoTournamentWinner=function(){
+  const previous=tournamentUndoStack.pop();
+  if(!previous)return;
+  tournaments=previous;
+  saveTournamentState(false);
+  renderTournament();
+  if(document.querySelector('#tournamentScreen')?.classList.contains('show')){
+    if(tournamentWinnerSelectionMode&&tournamentPresentationFocus!=='all')renderTournamentPresentation();
+    else openTournamentFullscreen();
+  }
+};
+</script>
+<style>
+/* 대진 편성은 단계 표시 없이, 모든 입력 칸을 같은 글꼴로 표시합니다. */
+#tournamentSteps,.tournament-steps{display:none!important}
+#tournamentPanel select,#tournamentPanel input,#tournamentPanel button,
+#tournamentPanel .tournament-meta,#tournamentPanel .tournament-options{
+  font-family:Nunito,"Noto Sans KR",Arial,sans-serif!important;
+}
+</style></body></html>
 
 
 
