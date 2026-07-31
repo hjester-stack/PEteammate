@@ -1544,7 +1544,39 @@ undoTournamentWinner=function(){
 #tournamentPanel .tournament-meta,#tournamentPanel .tournament-options{
   font-family:Nunito,"Noto Sans KR",Arial,sans-serif!important;
 }
-</style></body></html>
+</style>
+<script>
+/* 승자 취소는 전체 대진이 아니라 마지막으로 고른 한 경기만 되돌립니다. */
+let singleWinnerUndoHistory=[];
+const chooseTournamentWinnerWithSingleMatchUndo=chooseTournamentWinner;
+chooseTournamentWinner=function(group,match,side){
+  const roundIndex=tournaments[group]?.rounds.length-1;
+  const game=tournaments[group]?.rounds[roundIndex]?.[match];
+  if(!game)return;
+  singleWinnerUndoHistory.push({group,match,roundIndex,roundCount:tournaments[group].rounds.length,previous:game.winner||null});
+  chooseTournamentWinnerWithSingleMatchUndo(group,match,side);
+};
+undoTournamentWinner=function(){
+  const action=singleWinnerUndoHistory.pop();
+  if(!action)return;
+  const group=tournaments[action.group];
+  if(!group)return;
+  group.rounds=group.rounds.slice(0,action.roundCount);
+  const game=group.rounds[action.roundIndex]?.[action.match];
+  if(game)game.winner=action.previous;
+  tournamentUndoStack.pop();
+  saveTournamentState(false);
+  renderTournament();
+  if(document.querySelector('#tournamentScreen')?.classList.contains('show')){
+    if(tournamentWinnerSelectionMode&&tournamentPresentationFocus!=='all')renderTournamentPresentation();
+    else openTournamentFullscreen();
+  }
+};
+const buildTournamentWithSingleMatchUndoReset=buildTournament;
+buildTournament=function(){singleWinnerUndoHistory=[];return buildTournamentWithSingleMatchUndoReset();};
+const loadArchivedTournamentWithSingleMatchUndoReset=loadArchivedTournament;
+loadArchivedTournament=function(id){singleWinnerUndoHistory=[];return loadArchivedTournamentWithSingleMatchUndoReset(id);};
+</script></body></html>
 
 
 
