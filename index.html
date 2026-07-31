@@ -1114,7 +1114,7 @@ function renderTeamScoreboard(){
   if(!area || currentTeams.length < 2) return;
   if(teamGame.homeIndex === teamGame.awayIndex) teamGame.awayIndex = (teamGame.homeIndex + 1) % currentTeams.length;
   const options = teamLabels.map((name,index) => `<option value="${index}">${escapeHtml(name)}</option>`).join('');
-  area.innerHTML = `<h3>경기 점수판 · 타이머</h3>
+  area.innerHTML = `<div class="game-heading"><h3>경기 점수판 · 타이머</h3><button class="game-fullscreen" onclick="openTeamGameFullscreen()">전체화면 보기</button></div>
     <div class="game-control-row">
       <label class="game-select">왼쪽 팀 <select onchange="setGameTeam('home',this.value)">${options}</select></label>
       <label class="game-select">오른쪽 팀 <select onchange="setGameTeam('away',this.value)">${options}</select></label>
@@ -1157,6 +1157,37 @@ renderReveal = function(){
   ensureTeamLabels();
   document.querySelectorAll('#reveal .reveal-box h2').forEach((heading,index)=>heading.textContent=teamLabels[index] || `${index+1}팀`);
 };
+</script>
+<style>
+.game-heading{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:14px}.team-game-tools .game-heading h3{margin:0}.game-fullscreen{background:#2563EB!important;color:#fff!important;padding:9px 15px!important;white-space:nowrap}
+.game-screen{display:none;position:fixed;inset:0;z-index:50;overflow:auto;background:#172235;color:#fff;padding:28px}.game-screen.show{display:flex;flex-direction:column;align-items:center}.game-screen-close{position:absolute;top:22px;right:24px;background:#fff;color:#1E293B}.game-screen h1{margin:5vh 0 26px;color:#FFD166;font-size:clamp(30px,5vw,70px)}
+.game-screen .game-scoreboard{width:min(1250px,94vw);grid-template-columns:1fr auto 1fr;gap:24px;margin:10px 0 26px}.game-screen .game-team-score{min-height:min(47vh,440px);display:grid;align-content:center;gap:14px;border:2px solid #9CC9FF;background:#DDEEFF;color:#164E8C}.game-screen .game-team-score.away{border-color:#FFB6CD;background:#FFE2EC;color:#A11950}.game-screen .game-team-score strong{font-size:clamp(25px,4vw,52px)}.game-screen .game-team-score output{font-size:clamp(100px,18vw,250px)}.game-screen .score-buttons button{font-size:clamp(22px,3vw,42px);padding:10px 24px}.game-screen .game-vs{font-size:clamp(28px,4vw,52px);color:#fff}.game-screen .timer-panel{width:min(1000px,94vw);border:2px solid #50617A;border-radius:20px;padding:18px;background:#24344D}.game-screen .timer-display{font-size:clamp(52px,9vw,120px);color:#FFD166}.game-screen .timer-actions button,.game-screen .quick-time button{font-size:clamp(17px,2vw,27px);padding:12px 20px}
+@media(max-width:650px){.game-screen{padding:16px}.game-screen h1{margin-top:70px}.game-screen .game-scoreboard{gap:8px}.game-screen .game-team-score{min-height:290px;padding:10px}.game-screen .game-team-score output{font-size:80px}.game-screen .score-buttons button{padding:9px 13px}.game-screen .timer-panel{justify-content:center}.game-heading{align-items:flex-start;flex-direction:column}}
+</style>
+<script>
+function renderTeamGameFullscreen(){
+  const screen=document.querySelector('#teamGameScreen');
+  if(!screen) return;
+  screen.innerHTML=`<button class="game-screen-close" onclick="closeTeamGameFullscreen()">✕ 나가기</button><h1>경기 점수판</h1>
+    <div class="game-scoreboard">
+      <div class="game-team-score"><strong>${escapeHtml(teamLabels[teamGame.homeIndex])}</strong><output>${teamGame.home}</output><div class="score-buttons"><button onclick="changeGameScore('home',-1)">−</button><button onclick="changeGameScore('home',1)">+1</button></div></div>
+      <div class="game-vs">VS</div>
+      <div class="game-team-score away"><strong>${escapeHtml(teamLabels[teamGame.awayIndex])}</strong><output>${teamGame.away}</output><div class="score-buttons"><button onclick="changeGameScore('away',-1)">−</button><button onclick="changeGameScore('away',1)">+1</button></div></div>
+    </div>
+    <div class="timer-panel"><div class="timer-display">${gameTimeText(teamGame.seconds)}</div><div class="timer-actions"><button onclick="toggleGameTimer()">${teamGame.timerId?'정지':'시작'}</button><button onclick="resetGameTimer()">초기화</button></div><div class="quick-time"><button onclick="setGameTime(60)">1분</button><button onclick="setGameTime(180)">3분</button><button onclick="setGameTime(300)">5분</button></div></div>`;
+}
+function openTeamGameFullscreen(){
+  let screen=document.querySelector('#teamGameScreen');
+  if(!screen){screen=document.createElement('section');screen.id='teamGameScreen';screen.className='game-screen';document.body.appendChild(screen);}
+  renderTeamGameFullscreen();screen.classList.add('show');
+  if(screen.requestFullscreen) screen.requestFullscreen().catch(()=>{});
+}
+function closeTeamGameFullscreen(){
+  const screen=document.querySelector('#teamGameScreen'); if(screen) screen.classList.remove('show');
+  if(document.fullscreenElement) document.exitFullscreen?.();
+}
+const renderTeamScoreboardWithFullscreen = renderTeamScoreboard;
+renderTeamScoreboard=function(){renderTeamScoreboardWithFullscreen();if(document.querySelector('#teamGameScreen.show'))renderTeamGameFullscreen();};
 </script></body></html>
 
 
