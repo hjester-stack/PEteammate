@@ -1430,7 +1430,30 @@ renderTournament=function(){renderTournamentWithoutFileActions();document.queryS
 /* 대진 저장 버튼은 대진표 만들기 아래 오른쪽에 고정합니다. */
 #tournamentPanel > .tournament-save{display:flex!important;width:max-content;margin:0 0 14px auto!important}
 @media(max-width:720px){#tournamentPanel > .tournament-save{margin-left:auto!important}}
-</style></body></html>
+</style>
+<style>
+/* 토너먼트 입력 영역 글꼴과 전체화면 안내를 통일합니다. */
+#tournamentPanel .tournament-meta,#tournamentPanel .tournament-meta label,#tournamentPanel .tournament-meta input,#tournamentPanel .tournament-meta select{font-family:Nunito,"Noto Sans KR",Arial,sans-serif!important}
+.fullscreen-choice-guide{margin:0 0 16px;color:#DCE7F7;font:700 clamp(14px,1.7vw,20px)/1.55 Nunito,"Noto Sans KR",Arial,sans-serif;text-align:center}.fullscreen-choice-guide b{color:#FDE68A}
+</style>
+<script>
+/* 승자 선택 방법은 전체화면에도 안내하고, 별도 되돌리기 버튼은 숨깁니다. */
+function addFullscreenTournamentChoiceGuide(){
+  const content=document.querySelector('#tournamentScreenContent');if(!content||content.querySelector('.fullscreen-choice-guide'))return;
+  const guide=document.createElement('p');guide.className='fullscreen-choice-guide';guide.innerHTML='<b>승자 선택</b> · 이긴 학생 이름을 마우스 왼쪽 버튼으로 누르세요. &nbsp; <b>선택 취소</b> · 방금 선택한 승자는 마우스 오른쪽 버튼으로 눌러 취소할 수 있습니다.';
+  (content.querySelector('.fs-caption')||content.querySelector('.fs-title'))?.insertAdjacentElement('afterend',guide);
+}
+const openTournamentFullscreenWithChoiceGuide=openTournamentFullscreen;
+openTournamentFullscreen=function(){openTournamentFullscreenWithChoiceGuide();addFullscreenTournamentChoiceGuide();};
+const renderTournamentPresentationWithChoiceGuide=renderTournamentPresentation;
+renderTournamentPresentation=function(){renderTournamentPresentationWithChoiceGuide();addFullscreenTournamentChoiceGuide();};
+const renderTournamentWithoutUndoControls=renderTournament;
+renderTournament=function(){
+  renderTournamentWithoutUndoControls();
+  const row=document.querySelector('#tournamentOut .tournament-undo-row');
+  row?.querySelectorAll('button,small').forEach(element=>element.remove());
+};
+</script></body></html>
 
 
 
