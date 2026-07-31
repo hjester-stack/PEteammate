@@ -1031,6 +1031,132 @@ renderTournament = function() {
   const fullscreenButton = document.querySelector('#tournamentOut .tournament-fullscreen');
   if (fullscreenButton) fullscreenButton.onclick = openTournamentFullscreenPresentation;
 };
+</script>
+<style>
+/* 팀마다 서로 다른 배경색으로 결과를 빠르게 구분합니다. */
+.result .team:nth-child(6n+1) { background:#EFF6FF !important; border-color:#93C5FD !important; }
+.result .team:nth-child(6n+2) { background:#FDF2F8 !important; border-color:#F9A8D4 !important; }
+.result .team:nth-child(6n+3) { background:#ECFDF5 !important; border-color:#86EFAC !important; }
+.result .team:nth-child(6n+4) { background:#FFF7ED !important; border-color:#FDBA74 !important; }
+.result .team:nth-child(6n+5) { background:#F5F3FF !important; border-color:#C4B5FD !important; }
+.result .team:nth-child(6n+6) { background:#FFFBEB !important; border-color:#FDE68A !important; }
+.result .team:nth-child(6n+1) h3 { background:#2563EB !important; }
+.result .team:nth-child(6n+2) h3 { background:#DB2777 !important; }
+.result .team:nth-child(6n+3) h3 { background:#16A34A !important; }
+.result .team:nth-child(6n+4) h3 { background:#EA580C !important; }
+.result .team:nth-child(6n+5) h3 { background:#7C3AED !important; }
+.result .team:nth-child(6n+6) h3 { background:#CA8A04 !important; }
+.result .team h3 { color:#fff !important; }
+.reveal-board .reveal-box:nth-child(6n+1) { background:#1E3A5F !important; }
+.reveal-board .reveal-box:nth-child(6n+2) { background:#5B254A !important; }
+.reveal-board .reveal-box:nth-child(6n+3) { background:#1F513A !important; }
+.reveal-board .reveal-box:nth-child(6n+4) { background:#5A351D !important; }
+.reveal-board .reveal-box:nth-child(6n+5) { background:#3D3265 !important; }
+.reveal-board .reveal-box:nth-child(6n+6) { background:#5C4A12 !important; }
+</style>
+<style>
+/* 팀 이름·수업용 점수판 */
+.team-name-input{
+  width:min(170px,70%); margin-left:8px; padding:6px 10px; border:0; border-radius:10px;
+  background:rgba(255,255,255,.96); color:#1E293B; font:800 20px/1.1 inherit; text-align:center;
+}
+.team-game-tools{
+  margin:26px auto 6px; max-width:900px; padding:20px; border:2px solid #D8E1EF;
+  border-radius:22px; background:#fff; box-shadow:0 6px 0 #D6DCE6;
+}
+.team-game-tools h3{margin:0 0 14px; font-size:22px; color:#1F2937;}
+.game-control-row{display:flex; flex-wrap:wrap; gap:12px; align-items:end;}
+.game-select{display:grid; gap:5px; flex:1 1 180px; font-weight:800; color:#475569;}
+.game-select select{width:100%; padding:10px 12px; border:2px solid #CBD5E1; border-radius:12px; background:#fff; font:800 17px inherit; color:#1E293B;}
+.game-scoreboard{display:grid; grid-template-columns:1fr auto 1fr; gap:12px; align-items:center; margin:18px 0;}
+.game-team-score{min-height:116px; padding:14px; border-radius:18px; text-align:center; background:#EFF6FF; color:#1D4ED8;}
+.game-team-score.away{background:#FDF2F8;color:#BE185D;}
+.game-team-score strong{display:block; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:19px;}
+.game-team-score output{display:block; margin:4px 0; font-size:52px; font-weight:900; line-height:1;}
+.score-buttons{display:flex; justify-content:center; gap:8px;}
+.score-buttons button,.timer-actions button,.quick-time button{border:0; border-radius:999px; padding:7px 13px; cursor:pointer; background:#334155; color:#fff; font:800 16px inherit;}
+.score-buttons button{background:#fff; color:#1E293B; border:2px solid currentColor;}
+.game-vs{font-size:20px; font-weight:900; color:#64748B;}
+.timer-panel{display:flex; flex-wrap:wrap; justify-content:center; align-items:center; gap:10px; padding-top:4px; border-top:1px solid #E2E8F0;}
+.timer-display{min-width:96px; font-variant-numeric:tabular-nums; font-size:34px; font-weight:900; color:#1E293B; text-align:center;}
+.timer-actions,.quick-time{display:flex; gap:7px; flex-wrap:wrap;}
+.timer-actions button:first-child{background:#2563EB}.timer-actions button:nth-child(2){background:#F43F5E}.quick-time button{background:#E2E8F0;color:#334155;}
+@media(max-width:600px){.game-scoreboard{gap:6px}.game-team-score output{font-size:40px}.team-name-input{font-size:16px}.timer-panel{justify-content:flex-start}}
+</style>
+<script>
+/* 팀 이름과 간단한 경기 점수판·타이머 */
+let teamLabels = [];
+let teamGame = { homeIndex:0, awayIndex:1, home:0, away:0, seconds:180, timerId:null };
+function escapeHtml(value){
+  return String(value ?? '').replace(/[&<>"']/g, character => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[character]));
+}
+
+function ensureTeamLabels(){
+  if(teamLabels.length !== currentTeams.length){
+    teamLabels = currentTeams.map((_, index) => `${index + 1}팀`);
+    if(teamGame.timerId) clearInterval(teamGame.timerId);
+    teamGame = { homeIndex:0, awayIndex:Math.min(1, Math.max(0,currentTeams.length-1)), home:0, away:0, seconds:180, timerId:null };
+  }
+}
+function updateTeamLabel(index, value){
+  const label = String(value || '').trim();
+  teamLabels[index] = label || `${index + 1}팀`;
+  document.querySelectorAll(`.team-name-input[data-team="${index}"]`).forEach(input => input.value = teamLabels[index]);
+  renderTeamScoreboard();
+}
+function gameTimeText(seconds){
+  const mins = Math.floor(Math.max(0,seconds)/60);
+  const secs = Math.max(0,seconds)%60;
+  return `${String(mins).padStart(2,'0')}:${String(secs).padStart(2,'0')}`;
+}
+function renderTeamScoreboard(){
+  const area = document.querySelector('#teamGameTools');
+  if(!area || currentTeams.length < 2) return;
+  if(teamGame.homeIndex === teamGame.awayIndex) teamGame.awayIndex = (teamGame.homeIndex + 1) % currentTeams.length;
+  const options = teamLabels.map((name,index) => `<option value="${index}">${escapeHtml(name)}</option>`).join('');
+  area.innerHTML = `<h3>경기 점수판 · 타이머</h3>
+    <div class="game-control-row">
+      <label class="game-select">왼쪽 팀 <select onchange="setGameTeam('home',this.value)">${options}</select></label>
+      <label class="game-select">오른쪽 팀 <select onchange="setGameTeam('away',this.value)">${options}</select></label>
+    </div>
+    <div class="game-scoreboard">
+      <div class="game-team-score"><strong>${escapeHtml(teamLabels[teamGame.homeIndex])}</strong><output>${teamGame.home}</output><div class="score-buttons"><button onclick="changeGameScore('home',-1)">−</button><button onclick="changeGameScore('home',1)">+1</button></div></div>
+      <div class="game-vs">VS</div>
+      <div class="game-team-score away"><strong>${escapeHtml(teamLabels[teamGame.awayIndex])}</strong><output>${teamGame.away}</output><div class="score-buttons"><button onclick="changeGameScore('away',-1)">−</button><button onclick="changeGameScore('away',1)">+1</button></div></div>
+    </div>
+    <div class="timer-panel"><div class="timer-display">${gameTimeText(teamGame.seconds)}</div><div class="timer-actions"><button onclick="toggleGameTimer()">${teamGame.timerId ? '정지' : '시작'}</button><button onclick="resetGameTimer()">초기화</button></div><div class="quick-time"><button onclick="setGameTime(60)">1분</button><button onclick="setGameTime(180)">3분</button><button onclick="setGameTime(300)">5분</button></div></div>`;
+  const selects=area.querySelectorAll('select'); selects[0].value=String(teamGame.homeIndex); selects[1].value=String(teamGame.awayIndex);
+}
+function setGameTeam(side, value){ teamGame[`${side}Index`] = Number(value); renderTeamScoreboard(); }
+function changeGameScore(side, difference){ teamGame[side] = Math.max(0, teamGame[side] + difference); renderTeamScoreboard(); }
+function setGameTime(seconds){ teamGame.seconds=seconds; if(teamGame.timerId){clearInterval(teamGame.timerId);teamGame.timerId=null;} renderTeamScoreboard(); }
+function toggleGameTimer(){
+  if(teamGame.timerId){ clearInterval(teamGame.timerId); teamGame.timerId=null; renderTeamScoreboard(); return; }
+  if(teamGame.seconds <= 0) teamGame.seconds=180;
+  teamGame.timerId=setInterval(()=>{ teamGame.seconds--; if(teamGame.seconds<=0){teamGame.seconds=0;clearInterval(teamGame.timerId);teamGame.timerId=null;} renderTeamScoreboard(); },1000);
+  renderTeamScoreboard();
+}
+function resetGameTimer(){ if(teamGame.timerId){clearInterval(teamGame.timerId);teamGame.timerId=null;} teamGame.seconds=180; teamGame.home=0; teamGame.away=0; renderTeamScoreboard(); }
+
+const showTeamsWithNamesAndScoreboard = showTeams;
+showTeams = function(){
+  ensureTeamLabels();
+  showTeamsWithNamesAndScoreboard();
+  document.querySelectorAll('#out .result .team').forEach((team,index)=>{
+    const heading=team.querySelector('h3'); if(!heading) return;
+    const count=heading.querySelector('small')?.outerHTML || '';
+    heading.innerHTML=`<b>${index+1}</b><input class="team-name-input" data-team="${index}" value="${escapeHtml(teamLabels[index])}" onchange="updateTeamLabel(${index},this.value)">${count}`;
+  });
+  const out=document.querySelector('#out');
+  if(currentTeams.length>=2 && !document.querySelector('#teamGameTools')) out.insertAdjacentHTML('beforeend','<section id="teamGameTools" class="team-game-tools"></section>');
+  renderTeamScoreboard();
+};
+const renderRevealWithTeamLabels = renderReveal;
+renderReveal = function(){
+  renderRevealWithTeamLabels();
+  ensureTeamLabels();
+  document.querySelectorAll('#reveal .reveal-box h2').forEach((heading,index)=>heading.textContent=teamLabels[index] || `${index+1}팀`);
+};
 </script></body></html>
 
 
