@@ -1576,6 +1576,67 @@ const buildTournamentWithSingleMatchUndoReset=buildTournament;
 buildTournament=function(){singleWinnerUndoHistory=[];return buildTournamentWithSingleMatchUndoReset();};
 const loadArchivedTournamentWithSingleMatchUndoReset=loadArchivedTournament;
 loadArchivedTournament=function(id){singleWinnerUndoHistory=[];return loadArchivedTournamentWithSingleMatchUndoReset(id);};
+</script>
+<script>
+/* 원하는 승자 이름을 오른쪽 클릭해 해당 경기만 다시 선택합니다. */
+function cancelTournamentWinner(groupIndex,roundIndex,matchIndex){
+  const group=tournaments[groupIndex];
+  const match=group?.rounds[roundIndex]?.[matchIndex];
+  if(!match?.winner)return;
+  /* 이전 라운드 결과를 바꾸면 그 결과에 연결된 다음 라운드만 새로 고릅니다. */
+  group.rounds=group.rounds.slice(0,roundIndex+1);
+  group.rounds[roundIndex][matchIndex].winner=null;
+  singleWinnerUndoHistory=[];
+  tournamentUndoStack=[];
+  saveTournamentState(false);
+  renderTournament();
+  if(document.querySelector('#tournamentScreen')?.classList.contains('show')){
+    if(tournamentWinnerSelectionMode&&tournamentPresentationFocus!=='all')renderTournamentPresentation();
+    else openTournamentFullscreen();
+  }
+}
+function renderTournamentTree(g,gi){
+  const rounds=g.rounds,depth=rounds.length,height=(depth+1)*170+90,lines=[],nodes=[];
+  for(let ri=0;ri<rounds.length;ri++){
+    const round=rounds[ri],y=(depth-ri)*170+20;
+    round.forEach((match,mi)=>{
+      const x=(mi+.5)/round.length*100,active=ri===rounds.length-1&&match.b;
+      const card=(player,side)=>{
+        if(!player)return '<div class="tree-name">부전승</div>';
+        const selected=match.winner===player;
+        const tag=active?'button':'div';
+        const choose=active?` onclick="selectTournamentWinnerFullscreen(${gi},${mi},'${side}')"`:'';
+        const cancel=selected?` oncontextmenu="event.preventDefault();event.stopImmediatePropagation();cancelTournamentWinner(${gi},${ri},${mi});"`:'';
+        return `<${tag} class="tree-name ${player.g==='남'?'boy':'girl'} ${active?'clickable':''} ${selected?'tree-winner':''}"${choose}${cancel}>${player.n}</${tag}>`;
+      };
+      nodes.push(`<div class="tree-node" style="left:${x}%;top:${y}px"><div class="tree-round">${ri+1}차전 · ${mi+1}경기</div><div class="tree-match">${card(match.a,'a')}<div class="tree-vs">VS</div>${card(match.b,'b')}</div></div>`);
+      if(ri>0){
+        const previous=rounds[ri-1],left=previous[mi*2],right=previous[mi*2+1],childY=(depth-(ri-1))*170+108,parentY=y+35;
+        if(left&&right){
+          const leftX=(mi*2+.5)/previous.length*1000,rightX=(mi*2+1.5)/previous.length*1000,parentX=x*10;
+          lines.push(orthogonalBranch(leftX,rightX,parentX,childY,parentY));
+        }
+      }
+    });
+  }
+  const final=rounds.at(-1),champion=final.length===1&&final[0].winner?`<div class="tree-champion" style="left:50%;top:0">🏆 우승 · ${final[0].winner.n}</div>`:'';
+  return `<div class="tree-wrap"><div class="tree-board" style="height:${height}px">${champion}<svg class="tree-lines" viewBox="0 0 1000 ${height}" preserveAspectRatio="none">${lines.join('')}</svg>${nodes.join('')}</div></div>`;
+}
+const renderTournamentWithDirectWinnerCancel=renderTournament;
+renderTournament=function(){
+  renderTournamentWithDirectWinnerCancel();
+  document.querySelectorAll('#tournamentOut .tournament-grid .clean-bracket').forEach((card,groupIndex)=>{
+    const roundIndex=tournaments[groupIndex]?.rounds.length-1;
+    card.querySelectorAll('.match').forEach((matchCard,matchIndex)=>{
+      matchCard.querySelectorAll('.player.winner').forEach(player=>{
+        player.oncontextmenu=event=>{event.preventDefault();event.stopImmediatePropagation();cancelTournamentWinner(groupIndex,roundIndex,matchIndex);};
+      });
+    });
+  });
+};
+document.querySelectorAll('.tournament-choice-guide,.fullscreen-choice-guide').forEach(guide=>{
+  guide.innerHTML=guide.innerHTML.replace(/방금 선택한 승자|방금 선택한/i,'선택한 승자');
+});
 </script></body></html>
 
 
