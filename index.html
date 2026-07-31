@@ -1660,7 +1660,12 @@ showAllTournamentPresentation=function(){
   showAllTournamentPresentationWithFirstRoundScroll();
   scrollTournamentPresentationToFirstRound();
 };
-</script></body></html>
+</script>
+<style>
+/* 저장 목록에서도 대진 만들기 탭으로 바로 돌아갈 수 있습니다. */
+#tournamentPanel > small{display:none!important}
+#tournamentPanel .tournament-library-tabs{display:flex!important}
+</style></body></html>
 
 
 
