@@ -1009,6 +1009,28 @@ renderTournament = function() {
   const fullscreenButton = document.querySelector('#tournamentOut .tournament-fullscreen');
   if (fullscreenButton) fullscreenButton.textContent = '전체 화면 보기';
 };
+</script>
+<script>
+/* 대진 만들기 화면의 전체 화면 보기는 발표 모드로 시작합니다. */
+function openTournamentFullscreenPresentation() {
+  tournamentPresentationItems = [];
+  tournaments.forEach((group, groupIndex) => group.rounds[0].forEach((match, matchIndex) => {
+    if (match.a) tournamentPresentationItems.push({group:groupIndex, match:matchIndex, side:'a', student:match.a});
+    if (match.b) tournamentPresentationItems.push({group:groupIndex, match:matchIndex, side:'b', student:match.b});
+  }));
+  tournamentPresentationIndex = 0;
+  tournamentPresentationShown = [];
+  tournamentPresentationFocus = 'all';
+  renderTournamentPresentation();
+  const showAllButton = document.querySelector('#tournamentScreen .reveal-all');
+  if (showAllButton) showAllButton.textContent = '전체 학생 보기';
+}
+const renderTournamentWithPresentationFullscreen = renderTournament;
+renderTournament = function() {
+  renderTournamentWithPresentationFullscreen();
+  const fullscreenButton = document.querySelector('#tournamentOut .tournament-fullscreen');
+  if (fullscreenButton) fullscreenButton.onclick = openTournamentFullscreenPresentation;
+};
 </script></body></html>
 
 
