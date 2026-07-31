@@ -1353,6 +1353,70 @@ document.addEventListener('contextmenu',event=>{
   event.preventDefault();
   undoTournamentWinner();
 });
+</script>
+<script>
+/* 첫 화면 문구 정리 및 더 안정적인 백업 파일 저장 */
+document.querySelector('header small')?.remove();
+document.querySelector('.hero b')?.remove();
+function backupArray(key){try{const value=JSON.parse(localStorage.getItem(key)||'[]');return Array.isArray(value)?value:[];}catch{return [];}}
+async function downloadPETeammateBackup(){
+  const payload={app:'체육 팀메이트',version:1,exportedAt:new Date().toISOString(),classes:cls,savedTeams:backupArray('peTeamArchive'),savedTournaments:backupArray('peTournamentArchive')};
+  const filename=`체육팀메이트_백업_${new Date().toISOString().slice(0,10)}.json`;
+  const blob=new Blob([JSON.stringify(payload,null,2)],{type:'application/json;charset=utf-8'});
+  if('showSaveFilePicker' in window){
+    try{
+      const handle=await window.showSaveFilePicker({suggestedName:filename,types:[{description:'체육 팀메이트 백업 파일',accept:{'application/json':['.json']}}]});
+      const writable=await handle.createWritable();await writable.write(blob);await writable.close();return;
+    }catch(error){if(error?.name==='AbortError')return;}
+  }
+  const url=URL.createObjectURL(blob),link=document.createElement('a');
+  link.href=url;link.download=filename;link.style.display='none';document.body.appendChild(link);link.click();
+  setTimeout(()=>{URL.revokeObjectURL(url);link.remove();},30000);
+}
+</script>
+<style>
+.team-file-actions,.tournament-file-actions{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 14px}.team-file-actions button,.tournament-file-actions button{min-height:40px;padding:8px 14px}.file-save-button{background:#EFF6FF!important;color:#1D4ED8!important;border:2px solid #93C5FD!important}.print-button{background:#F3F4F6!important;color:#374151!important;border:2px solid #D1D5DB!important}
+@media print{body[data-print-mode="teams"] header,body[data-print-mode="teams"] .hero,body[data-print-mode="teams"] #rosterPanel,body[data-print-mode="teams"] #teamPanel,body[data-print-mode="teams"] #tournamentPanel,body[data-print-mode="teams"] footer{display:none!important}body[data-print-mode="teams"] #out{display:block!important;border:0!important;box-shadow:none!important}body[data-print-mode="teams"] .archive-actions,body[data-print-mode="teams"] .team-game-tools,body[data-print-mode="teams"] .team-file-actions{display:none!important}body[data-print-mode="tournament"] header,body[data-print-mode="tournament"] .hero,body[data-print-mode="tournament"] #rosterPanel,body[data-print-mode="tournament"] #teamPanel,body[data-print-mode="tournament"] #out,body[data-print-mode="tournament"] footer{display:none!important}body[data-print-mode="tournament"] #tournamentPanel{display:block!important;border:0!important;box-shadow:none!important}body[data-print-mode="tournament"] #tournamentPanel>*:not(#tournamentOut){display:none!important}body[data-print-mode="tournament"] .tournament-tree-actions,body[data-print-mode="tournament"] .tournament-undo-row{display:none!important}}
+</style>
+<script>
+/* 학생 명단 백업은 제거하고, 팀 결과와 대진표만 파일·출력으로 보관합니다. */
+document.querySelector('.data-backup-tools')?.remove();
+async function saveClassworkFile(filename,payload){
+  const blob=new Blob([JSON.stringify(payload,null,2)],{type:'application/json;charset=utf-8'});
+  if('showSaveFilePicker' in window){
+    try{const handle=await window.showSaveFilePicker({suggestedName:filename,types:[{description:'체육 팀메이트 파일',accept:{'application/json':['.json']}}]});const writable=await handle.createWritable();await writable.write(blob);await writable.close();return;}catch(error){if(error?.name==='AbortError')return;}
+  }
+  const url=URL.createObjectURL(blob),link=document.createElement('a');link.href=url;link.download=filename;link.style.display='none';document.body.appendChild(link);link.click();setTimeout(()=>{URL.revokeObjectURL(url);link.remove();},30000);
+}
+function saveCurrentTeamFile(){
+  if(!currentTeams.length)return alert('먼저 팀을 편성해 주세요.');
+  const payload={type:'team-arrangement',savedAt:new Date().toISOString(),className:label(),teamLabels:typeof teamLabels==='undefined'?[]:teamLabels,teams:currentTeams};
+  saveClassworkFile(`${label()}_팀편성.json`,payload);
+}
+function saveCurrentTournamentFile(){
+  if(!tournaments.length)return alert('먼저 대진표를 만들어 주세요.');
+  const payload={type:'tournament',savedAt:new Date().toISOString(),className:label(),name:document.querySelector('#tournamentName')?.value||'',mode:document.querySelector('#tournamentType')?.value||'',format:document.querySelector('#tournamentFormat')?.value||'',groups:tournaments};
+  saveClassworkFile(`${label()}_대진표.json`,payload);
+}
+function printClasswork(mode){
+  document.body.dataset.printMode=mode;
+  const clear=()=>{delete document.body.dataset.printMode;window.removeEventListener('afterprint',clear);};
+  window.addEventListener('afterprint',clear);window.print();setTimeout(clear,1500);
+}
+const showTeamsWithFileActions=showTeams;
+showTeams=function(){
+  showTeamsWithFileActions();
+  if(currentTeams.length&&!out.querySelector('.team-file-actions')){
+    const action=document.createElement('div');action.className='team-file-actions';action.innerHTML='<button class="file-save-button" onclick="saveCurrentTeamFile()">파일로 저장</button><button class="print-button" onclick="printClasswork(\'teams\')">출력</button>';
+    (out.querySelector('.archive-actions')||out.querySelector('h2'))?.insertAdjacentElement('afterend',action);
+  }
+};
+const renderTournamentWithFileActions=renderTournament;
+renderTournament=function(){
+  renderTournamentWithFileActions();
+  const actions=document.querySelector('#tournamentOut .tournament-tree-actions');
+  if(actions&&!actions.querySelector('.tournament-file-actions'))actions.insertAdjacentHTML('beforeend','<span class="tournament-file-actions"><button class="file-save-button" onclick="saveCurrentTournamentFile()">파일로 저장</button><button class="print-button" onclick="printClasswork(\'tournament\')">출력</button></span>');
+};
 </script></body></html>
 
 
