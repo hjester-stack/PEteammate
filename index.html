@@ -1417,7 +1417,20 @@ renderTournament=function(){
   const actions=document.querySelector('#tournamentOut .tournament-tree-actions');
   if(actions&&!actions.querySelector('.tournament-file-actions'))actions.insertAdjacentHTML('beforeend','<span class="tournament-file-actions"><button class="file-save-button" onclick="saveCurrentTournamentFile()">파일로 저장</button><button class="print-button" onclick="printClasswork(\'tournament\')">출력</button></span>');
 };
-</script></body></html>
+</script>
+<script>
+/* 파일 저장·출력 단축 기능은 화면에서 제거합니다. */
+document.querySelectorAll('.team-file-actions,.tournament-file-actions').forEach(element=>element.remove());
+const showTeamsWithoutFileActions=showTeams;
+showTeams=function(){showTeamsWithoutFileActions();out.querySelectorAll('.team-file-actions').forEach(element=>element.remove());};
+const renderTournamentWithoutFileActions=renderTournament;
+renderTournament=function(){renderTournamentWithoutFileActions();document.querySelectorAll('#tournamentOut .tournament-file-actions').forEach(element=>element.remove());};
+</script>
+<style>
+/* 대진 저장 버튼은 대진표 만들기 아래 오른쪽에 고정합니다. */
+#tournamentPanel > .tournament-save{display:flex!important;width:max-content;margin:0 0 14px auto!important}
+@media(max-width:720px){#tournamentPanel > .tournament-save{margin-left:auto!important}}
+</style></body></html>
 
 
 
