@@ -904,9 +904,13 @@ function showTournamentWinnerCelebration(groupIndex) {
   const group = tournaments[groupIndex], finalMatch = group?.rounds.at(-1)?.[0];
   if (!finalMatch?.winner) return;
   const content = document.querySelector('#tournamentScreenContent');
-  content.innerHTML = `<section class="tournament-winner-celebration"><div class="trophy">🏆</div><p>${group.name} 토너먼트</p><h1>우승자 : ${finalMatch.winner.n}</h1><small>축하합니다! 🎉</small><button class="present-next" onclick="closeTournamentFullscreen()">축하 화면 나가기</button></section>`;
+  content.innerHTML = `<section class="tournament-winner-celebration"><div class="trophy">🏆</div><p>${group.name} 토너먼트</p><h1>우승자 : ${finalMatch.winner.n}</h1><small>축하합니다! 🎉</small><button class="present-next" onclick="returnToTournamentTreeFullscreen()">대진표 전체 보기</button></section>`;
   document.querySelector('#tournamentScreen').classList.add('show');
   document.documentElement.requestFullscreen?.();
+}
+function returnToTournamentTreeFullscreen() {
+  tournamentFocus = 'all';
+  openTournamentFullscreen();
 }
 const selectFullscreenWinnerWithCelebration = selectTournamentWinnerFullscreen;
 selectTournamentWinnerFullscreen = function(groupIndex, matchIndex, side) {
@@ -1188,6 +1192,131 @@ function closeTeamGameFullscreen(){
 }
 const renderTeamScoreboardWithFullscreen = renderTeamScoreboard;
 renderTeamScoreboard=function(){renderTeamScoreboardWithFullscreen();if(document.querySelector('#teamGameScreen.show'))renderTeamGameFullscreen();};
+</script>
+<style>
+/* 백업·복원과 추가 팀 편성 조건 */
+.data-backup-tools,.team-rules-panel,.tournament-undo-row{border:2px solid var(--kl-line,#E5E7EB);border-radius:16px;background:#fff;padding:14px 16px;margin:16px 0}.data-backup-tools{display:flex;flex-wrap:wrap;align-items:center;gap:9px}.data-backup-tools b{margin-right:auto;color:#1F2937}.data-backup-tools button,.team-rules-panel button,.tournament-undo-row button{min-height:38px;padding:7px 13px}.data-backup-tools .backup-note{width:100%;font-size:13px;color:#6B7280}
+.team-rules-panel h3{margin:0 0 10px;font-size:18px;color:#1F2937}.team-rules-panel p{margin:0 0 12px;font-size:13px;color:#64748B}.team-rule-form{display:grid;grid-template-columns:1fr 1fr auto auto;gap:8px;align-items:center}.team-rule-form select,.captain-form select{min-width:0;padding:9px 11px;border:2px solid #D1D5DB;border-radius:11px;background:#fff;font:inherit}.team-rule-form .same-rule{background:#DBEAFE;color:#1D4ED8}.team-rule-form .apart-rule{background:#FCE7F3;color:#BE185D}.captain-form{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-top:10px}.captain-form strong{color:#374151}.captain-form button{background:#FEF3C7;color:#92400E}.team-rule-list{display:flex;flex-wrap:wrap;gap:7px;margin-top:12px}.team-rule-chip{display:inline-flex;align-items:center;gap:6px;border-radius:999px;padding:6px 9px;background:#F3F4F6;color:#374151;font-size:13px;font-weight:800}.team-rule-chip.same{background:#DBEAFE;color:#1D4ED8}.team-rule-chip.apart{background:#FCE7F3;color:#BE185D}.team-rule-chip.captain{background:#FEF3C7;color:#92400E}.team-rule-chip button{min-height:0!important;padding:0!important;background:transparent!important;color:inherit!important;font-size:17px;line-height:1}.rule-empty{margin-top:10px;color:#9CA3AF;font-size:13px}.tournament-undo-row{display:flex;align-items:center;gap:10px}.tournament-undo-row small{color:#64748B}.tournament-undo-row button{background:#FFF7ED!important;color:#C2410C!important;border:2px solid #FDBA74!important}
+@media(max-width:720px){.team-rule-form{grid-template-columns:1fr 1fr}.team-rule-form button{width:100%}.data-backup-tools b{width:100%}}
+</style>
+<script>
+/* 1. 학급·저장 팀·저장 대진표 백업과 복원 */
+function ensureBackupTools(){
+  const panel=document.querySelector('#rosterPanel');
+  if(!panel || panel.querySelector('.data-backup-tools')) return;
+  const tools=document.createElement('section');
+  tools.className='data-backup-tools';
+  tools.innerHTML='<b>자료 백업</b><button type="button" onclick="downloadPETeammateBackup()">내보내기</button><button type="button" onclick="document.querySelector(\'#peBackupInput\').click()">불러오기</button><input id="peBackupInput" type="file" accept="application/json,.json" hidden onchange="restorePETeammateBackup(this.files[0])"><span class="backup-note">이 브라우저에 저장된 학급·팀 편성·대진표를 파일로 보관하거나 다른 기기에서 불러올 수 있어요.</span>';
+  panel.querySelector('h2')?.insertAdjacentElement('afterend',tools);
+}
+function downloadPETeammateBackup(){
+  const payload={app:'체육 팀메이트',version:1,exportedAt:new Date().toISOString(),classes:cls,savedTeams:JSON.parse(localStorage.peTeamArchive||'[]'),savedTournaments:JSON.parse(localStorage.peTournamentArchive||'[]')};
+  const blob=new Blob([JSON.stringify(payload,null,2)],{type:'application/json'}),url=URL.createObjectURL(blob),link=document.createElement('a');
+  link.href=url;link.download=`체육팀메이트_백업_${new Date().toISOString().slice(0,10)}.json`;document.body.appendChild(link);link.click();link.remove();URL.revokeObjectURL(url);
+}
+function restorePETeammateBackup(file){
+  if(!file) return;
+  const reader=new FileReader();
+  reader.onload=event=>{
+    try{
+      const payload=JSON.parse(String(event.target.result||''));
+      if(!Array.isArray(payload.classes)||!payload.classes.length) throw new Error('학급 정보가 없습니다.');
+      if(!confirm('현재 이 브라우저의 학급·저장 팀·저장 대진표를 백업 파일 내용으로 바꿀까요?')) return;
+      cls=payload.classes;a=0;
+      localStorage.peTeams2=JSON.stringify(cls);
+      localStorage.peTeamArchive=JSON.stringify(Array.isArray(payload.savedTeams)?payload.savedTeams:[]);
+      localStorage.peTournamentArchive=JSON.stringify(Array.isArray(payload.savedTournaments)?payload.savedTournaments:[]);
+      currentTeams=[];selected=[];tournaments=[];tournamentUndoStack=[];tabs();render();renderTeamRules();out.innerHTML='';
+      alert('백업 파일을 불러왔습니다.');
+    }catch(error){alert('백업 파일을 읽지 못했습니다. 체육 팀메이트에서 내보낸 JSON 파일인지 확인해 주세요.');}
+  };
+  reader.readAsText(file,'utf-8');
+}
+
+/* 2. 같은 팀·다른 팀·주장 후보 조건을 고려한 팀 편성 */
+function teamRulesForCurrentClass(){
+  if(!cls[a].teamRules) cls[a].teamRules={same:[],apart:[],captains:[]};
+  return cls[a].teamRules;
+}
+function teamStudentOptions(selected=''){
+  return cls[a].s.filter(student=>student.n?.trim()).sort((x,y)=>x.no-y.no).map(student=>`<option value="${student.no}" ${String(student.no)===String(selected)?'selected':''}>${student.no}. ${escapeHtml(student.n)}</option>`).join('');
+}
+function ruleStudentName(no){const student=cls[a].s.find(item=>String(item.no)===String(no));return student?`${student.no}. ${student.n}`:'알 수 없는 학생'}
+function renderTeamRules(){
+  const panel=document.querySelector('#teamPanel');if(!panel) return;
+  let rulesPanel=panel.querySelector('#teamRulesPanel');
+  if(!rulesPanel){rulesPanel=document.createElement('section');rulesPanel.id='teamRulesPanel';rulesPanel.className='team-rules-panel';panel.querySelector('nav')?.insertAdjacentElement('afterend',rulesPanel);}
+  const rules=teamRulesForCurrentClass(),options=teamStudentOptions();
+  const pairChips=[...rules.same.map((pair,index)=>`<span class="team-rule-chip same">같은 팀 · ${escapeHtml(ruleStudentName(pair[0]))} · ${escapeHtml(ruleStudentName(pair[1]))}<button onclick="removeTeamRule('same',${index})" aria-label="조건 삭제">×</button></span>`),...rules.apart.map((pair,index)=>`<span class="team-rule-chip apart">다른 팀 · ${escapeHtml(ruleStudentName(pair[0]))} · ${escapeHtml(ruleStudentName(pair[1]))}<button onclick="removeTeamRule('apart',${index})" aria-label="조건 삭제">×</button></span>`),...rules.captains.map((no,index)=>`<span class="team-rule-chip captain">주장 후보 · ${escapeHtml(ruleStudentName(no))}<button onclick="removeTeamRule('captains',${index})" aria-label="조건 삭제">×</button></span>`)].join('');
+  rulesPanel.innerHTML=`<h3>추가 편성 조건</h3><p>기본 균형 편성에 원하는 조건을 더할 수 있어요. 조건이 많거나 서로 겹치면 편성이 어려울 수 있습니다.</p><div class="team-rule-form"><select id="teamRuleFirst"><option value="">학생 1 선택</option>${options}</select><select id="teamRuleSecond"><option value="">학생 2 선택</option>${options}</select><button class="same-rule" type="button" onclick="addTeamPairRule('same')">같은 팀</button><button class="apart-rule" type="button" onclick="addTeamPairRule('apart')">다른 팀</button></div><div class="captain-form"><strong>주장 후보</strong><select id="captainCandidate"><option value="">학생 선택</option>${options}</select><button type="button" onclick="addCaptainCandidate()">후보 추가</button></div>${pairChips?`<div class="team-rule-list">${pairChips}</div>`:'<div class="rule-empty">아직 추가 조건이 없습니다.</div>'}`;
+}
+function addTeamPairRule(kind){
+  const first=document.querySelector('#teamRuleFirst')?.value,second=document.querySelector('#teamRuleSecond')?.value;
+  if(!first||!second||first===second)return alert('서로 다른 학생 두 명을 선택해 주세요.');
+  const rules=teamRulesForCurrentClass(),pair=[String(first),String(second)].sort(),exists=[...rules.same,...rules.apart].some(item=>[...item].map(String).sort().join('|')===pair.join('|'));
+  if(exists)return alert('이미 등록한 학생 조합입니다.');
+  rules[kind].push(pair);save();renderTeamRules();
+}
+function addCaptainCandidate(){const value=document.querySelector('#captainCandidate')?.value;if(!value)return alert('학생을 선택해 주세요.');const rules=teamRulesForCurrentClass();if(!rules.captains.map(String).includes(String(value)))rules.captains.push(String(value));save();renderTeamRules();}
+function removeTeamRule(kind,index){teamRulesForCurrentClass()[kind].splice(index,1);save();renderTeamRules();}
+function makeBalancedTeamsWithRules(students,teamCount,rules){
+  const ids=students.map(student=>String(student.no)),parent=Object.fromEntries(ids.map(id=>[id,id]));
+  const find=id=>parent[id]===id?id:(parent[id]=find(parent[id])); const join=(left,right)=>{left=find(left);right=find(right);if(left!==right)parent[right]=left;};
+  rules.same.forEach(([left,right])=>{if(parent[String(left)]&&parent[String(right)])join(String(left),String(right));});
+  const unitsMap={};students.forEach(student=>(unitsMap[find(String(student.no))]??=[]).push(student));const units=Object.values(unitsMap);
+  const apart=rules.apart.map(pair=>pair.map(String));
+  if(apart.some(([left,right])=>find(left)===find(right)))return {error:'같은 팀 조건과 다른 팀 조건이 서로 겹칩니다.'};
+  const captainSet=new Set(rules.captains.map(String));
+  if(captainSet.size>teamCount)return {error:`주장 후보는 ${teamCount}명 이하로 선택해 주세요.`};
+  if(units.some(unit=>unit.filter(student=>captainSet.has(String(student.no))).length>1))return {error:'같은 팀 조건 안에 주장 후보가 둘 이상 있습니다.'};
+  const teams=Array.from({length:teamCount},()=>[]),unitCaptains=unit=>unit.some(student=>captainSet.has(String(student.no)));
+  units.sort((left,right)=>Number(unitCaptains(right))-Number(unitCaptains(left))||right.length-left.length||Math.random()-.5).forEach(unit=>{
+    const teamIndex=teams.map((team,index)=>{
+      const conflict=apart.some(([left,right])=>unit.some(student=>String(student.no)===left)&&team.some(student=>String(student.no)===right)||unit.some(student=>String(student.no)===right)&&team.some(student=>String(student.no)===left));
+      const captainClash=unitCaptains(unit)&&team.some(student=>captainSet.has(String(student.no)));
+      const levelPenalty=unit.reduce((sum,student)=>sum+team.filter(member=>member.l===student.l).length,0);
+      const genderPenalty=unit.reduce((sum,student)=>sum+team.filter(member=>member.g===student.g).length,0);
+      return [index,(conflict?100000:0)+(captainClash?10000:0)+team.length*100+levelPenalty*10+genderPenalty*10+Math.random()];
+    }).sort((left,right)=>left[1]-right[1])[0][0];teams[teamIndex].push(...unit);
+  });
+  if(apart.some(([left,right])=>teams.some(team=>team.some(student=>String(student.no)===left)&&team.some(student=>String(student.no)===right))))return {error:'현재 조건에서는 다른 팀으로 나누기 어렵습니다. 조건을 줄이거나 팀 수를 늘려 주세요.'};
+  return {teams};
+}
+const makeWithExtraRules=make;
+make=function(){
+  const students=cls[a].s.filter(student=>student.n.trim()),teamCount=teamBuildMode==='count'?teamBuildValue:Math.ceil(students.length/teamBuildValue),rules=teamRulesForCurrentClass();
+  if(!rules.same.length&&!rules.apart.length&&!rules.captains.length)return makeWithExtraRules();
+  if(!students.length)return alert('이름을 한 명 이상 입력해 주세요.');if(students.length<teamCount)return alert('팀 수보다 학생 수가 적습니다.');
+  const result=makeBalancedTeamsWithRules(students,teamCount,rules);if(result.error)return alert(result.error);currentTeams=result.teams;selected=[];showTeams();
+};
+
+/* 4. 토너먼트 승자 선택 되돌리기 */
+let tournamentUndoStack=[];
+function tournamentSnapshot(){return JSON.parse(JSON.stringify(tournaments));}
+function undoTournamentWinner(){
+  const previous=tournamentUndoStack.pop();if(!previous)return;
+  tournaments=previous;saveTournamentState(false);renderTournament();
+  const screen=document.querySelector('#tournamentScreen');if(screen?.classList.contains('show')){tournamentFocus='all';openTournamentFullscreen();}
+}
+const chooseTournamentWinnerWithUndo=chooseTournamentWinner;
+chooseTournamentWinner=function(group,match,side){tournamentUndoStack.push(tournamentSnapshot());chooseTournamentWinnerWithUndo(group,match,side);};
+const buildTournamentWithUndoReset=buildTournament;
+buildTournament=function(){tournamentUndoStack=[];buildTournamentWithUndoReset();};
+const loadArchivedTournamentWithUndoReset=loadArchivedTournament;
+loadArchivedTournament=function(id){tournamentUndoStack=[];loadArchivedTournamentWithUndoReset(id);};
+const renderTournamentWithUndoButton=renderTournament;
+renderTournament=function(){
+  renderTournamentWithUndoButton();
+  const area=document.querySelector('#tournamentOut');
+  if(area&&tournaments.length&&!area.querySelector('.tournament-undo-row'))area.insertAdjacentHTML('afterbegin',`<div class="tournament-undo-row"><button type="button" onclick="undoTournamentWinner()" ${tournamentUndoStack.length?'':'disabled'}>↶ 이전 승자 선택 되돌리기</button><small>${tournamentUndoStack.length?'마지막 승자 선택을 되돌릴 수 있어요.':'승자를 선택한 뒤 되돌릴 수 있어요.'}</small></div>`);
+};
+const chgWithTeamRuleRefresh=chg;
+chg=function(index,key,value){chgWithTeamRuleRefresh(index,key,value);if(key==='n')renderTeamRules();};
+ensureBackupTools();renderTeamRules();
+const pickWithTeamRuleRefresh=pick;
+pick=function(index,button){const result=pickWithTeamRuleRefresh(index,button);renderTeamRules();return result;};
+const addClassWithTeamRuleRefresh=addClass;
+addClass=function(){const result=addClassWithTeamRuleRefresh();renderTeamRules();return result;};
 </script></body></html>
 
 
