@@ -1665,7 +1665,45 @@ showAllTournamentPresentation=function(){
 /* 저장 목록에서도 대진 만들기 탭으로 바로 돌아갈 수 있습니다. */
 #tournamentPanel > small{display:none!important}
 #tournamentPanel .tournament-library-tabs{display:flex!important}
-</style></body></html>
+</style>
+<style>
+/* 대진표를 만들 학급을 먼저 고릅니다. */
+.tournament-class-picker{display:grid;gap:6px;font-size:13px;font-weight:800;color:#475569}
+.tournament-class-picker select{min-height:44px;padding:9px 12px;border:2px solid var(--kl-line);border-radius:12px;background:#fff;color:var(--kl-ink);font:inherit}
+#tournamentPanel .tournament-meta{grid-template-columns:minmax(145px,190px) minmax(220px,1fr) 150px minmax(220px,300px) auto}
+@media(max-width:1050px){#tournamentPanel .tournament-meta{grid-template-columns:repeat(2,minmax(180px,1fr))}}
+@media(max-width:720px){#tournamentPanel .tournament-meta{grid-template-columns:1fr}}
+</style>
+<script>
+function renderTournamentClassPicker(){
+  const picker=document.querySelector('#tournamentClassPicker');
+  if(!picker)return;
+  picker.innerHTML=cls.map((classInfo,index)=>`<option value="${index}" ${index===a?'selected':''}>${classInfo.g}학년 ${classInfo.r}반</option>`).join('');
+}
+function selectTournamentClass(value){
+  const classIndex=Number(value);
+  if(!Number.isInteger(classIndex)||!cls[classIndex])return;
+  a=classIndex;
+  tabs();
+  render();
+  restoreTournamentState();
+  renderTournamentClassPicker();
+}
+const tournamentMetaForClassPicker=document.querySelector('#tournamentPanel .tournament-meta');
+if(tournamentMetaForClassPicker&&!document.querySelector('#tournamentClassPicker')){
+  const picker=document.createElement('label');
+  picker.className='tournament-class-picker';
+  picker.innerHTML='학급 선택<select id="tournamentClassPicker" onchange="selectTournamentClass(this.value)"></select>';
+  tournamentMetaForClassPicker.prepend(picker);
+}
+const tabsWithTournamentClassPicker=tabs;
+tabs=function(){
+  const result=tabsWithTournamentClassPicker();
+  renderTournamentClassPicker();
+  return result;
+};
+renderTournamentClassPicker();
+</script></body></html>
 
 
 
